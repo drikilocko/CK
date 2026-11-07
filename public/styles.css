@@ -144,7 +144,7 @@ body.map-open { overflow: hidden; }
 .delivery-map .maplibregl-ctrl-attrib { background: #fffF; color: #333; }
 .delivery-map .maplibregl-ctrl-attrib a { color: #111; }
 .map-footer { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "link link" "selection actions"; align-items: center; gap: 12px 20px; padding: 14px max(22px, calc((100vw - 1200px) / 2)); padding-bottom: max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: white; box-shadow: 0 -4px 18px #132b1c0c; }
-.map-selection { display: grid; gap: 5px; min-width: 0; }
+.map-selection { display: grid; gap: 5px; min-width: 0; padding: 12px 15px; border: 1px solid #e5def7; border-radius: 14px; background: #f7f5ff; }
 .map-selection { grid-area: selection; }
 .map-selection strong { font-size: 13px; }
 .map-selection span { color: var(--muted); font-size: 11px; line-height: 1.4; }
