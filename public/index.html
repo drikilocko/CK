@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#5229dd">
+  <title>CK — Vos commandes, suivies simplement</title>
+  <link rel="stylesheet" href="/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">CK<span>.</span></a>
+    <div id="account-bar" class="account-bar" hidden>
+      <span id="account-name"></span>
+      <button id="logout-button" class="button button-quiet" type="button">Déconnexion</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="auth-view" class="auth-layout">
+      <div class="intro">
+        <p class="eyebrow">BÉNIN · TOGO</p>
+        <h1>Vos achats,<br>en toute simplicité.</h1>
+        <p class="intro-copy">Ajoutez vos produits, indiquez où les livrer et suivez chaque étape de votre commande.</p>
+        <div class="steps-note"><span>01</span> Commande <i></i><span>02</span> Transport <i></i><span>03</span> Livraison</div>
+      </div>
+      <section class="panel auth-panel">
+        <div class="tabs" role="tablist">
+          <button id="login-tab" class="tab active" type="button">Connexion</button>
+          <button id="signup-tab" class="tab" type="button">Créer un compte</button>
+        </div>
+        <form id="auth-form">
+          <label>Nom d'utilisateur<input name="username" required minlength="3" maxlength="30" autocomplete="username" placeholder="Ex. ama123"></label>
+          <label>Mot de passe<input name="password" type="password" required minlength="8" maxlength="72" autocomplete="current-password" placeholder="8 caractères minimum"></label>
+          <button id="auth-submit" class="button button-primary full" type="submit">Se connecter</button>
+          <p id="auth-message" class="form-message" aria-live="polite"></p>
+        </form>
+      </section>
+    </section>
+
+    <section id="app-view" hidden>
+      <section id="customer-view">
+        <nav id="customer-nav" class="customer-nav" aria-label="Navigation principale">
+          <button class="nav-link" type="button" data-page-link="home">Accueil</button>
+          <button class="nav-link" type="button" data-page-link="order">Commander</button>
+          <button class="nav-link" type="button" data-page-link="orders">Mes commandes</button>
+        </nav>
+
+        <section id="customer-page-home" class="customer-page">
+          <div class="home-hero">
+            <p class="eyebrow">ESPACE CLIENT · BÉNIN & TOGO</p>
+            <h1>Bonjour <span id="welcome-name"></span>,<br>que souhaitez-vous faire ?</h1>
+            <p class="home-copy">Commandez vos produits en quelques étapes et suivez leur acheminement jusqu'à la livraison.</p>
+            <button class="button button-primary home-cta" type="button" data-page-link="order">＋ Créer une commande</button>
+          </div>
+          <div class="home-cards">
+            <button class="home-card" type="button" data-page-link="order">
+              <span class="home-card-icon">＋</span><strong>Passer une commande</strong>
+              <span>Ajoutez vos produits, indiquez la livraison et confirmez sur WhatsApp.</span>
+              <span class="home-card-action">Commencer →</span>
+            </button>
+            <button class="home-card" type="button" data-page-link="orders">
+              <span class="home-card-icon">↗</span><strong>Suivre mes commandes</strong>
+              <span>Retrouvez les étapes de livraison de vos colis.</span>
+              <span class="home-card-action"><span id="home-order-count">0</span> commande(s) · Voir →</span>
+            </button>
+          </div>
+          <section class="marketplaces-section" aria-labelledby="marketplaces-title">
+            <div class="section-heading">
+              <div><p class="eyebrow">VOS BOUTIQUES EN LIGNE</p><h2 id="marketplaces-title">Où acheter vos produits ?</h2></div>
+            </div>
+            <p class="marketplaces-copy">Choisissez une boutique pour rechercher vos articles. Revenez ensuite ici pour ajouter le produit à votre commande.</p>
+            <div class="marketplace-grid">
+              <a class="marketplace-card" href="https://www.alibaba.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Alibaba dans un nouvel onglet">
+                <span class="marketplace-icon"><img src="/assets/alibaba.png" alt=""></span><span class="marketplace-name">Alibaba</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.aliexpress.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir AliExpress dans un nouvel onglet">
+                <span class="marketplace-icon"><img src="/assets/aliexpress.png" alt=""></span><span class="marketplace-name">AliExpress</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.amazon.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Amazon dans un nouvel onglet">
+                <span class="marketplace-icon"><img src="/assets/amazon.png" alt=""></span><span class="marketplace-name">Amazon</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.temu.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Temu dans un nouvel onglet">
+                <span class="marketplace-icon"><img src="/assets/temu.png" alt=""></span><span class="marketplace-name">Temu</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </section>
+        </section>
+
+        <section id="customer-page-orders" class="customer-page" hidden>
+          <div class="section-heading page-heading">
+            <div><p class="eyebrow">VOTRE SUIVI</p><h1>Mes commandes</h1></div>
+            <button class="button button-primary" type="button" data-page-link="order">＋ Nouvelle commande</button>
+          </div>
+          <div class="orders-page-tools"><span class="live-label"><i></i> Suivi actualisé automatiquement</span></div>
+          <div id="orders-list" class="orders-list"></div>
+        </section>
+
+        <section id="customer-page-order" class="customer-page" hidden>
+          <form id="order-form" class="panel order-panel">
+            <div class="section-heading">
+              <div><p class="eyebrow">CRÉATION DE COMMANDE</p><h2 id="checkout-title">1. Vos produits</h2></div>
+            </div>
+            <div class="checkout-progress" aria-label="Étapes de commande">
+              <div class="progress-step active" data-step="1"><span>1</span><span class="progress-label">Produits</span></div>
+              <i></i>
+              <div class="progress-step" data-step="2"><span>2</span><span class="progress-label">Livraison</span></div>
+              <i></i>
+              <div class="progress-step" data-step="3"><span>3</span><span class="progress-label">Vérification</span></div>
+            </div>
+
+            <section class="checkout-step" data-checkout-step="1">
+              <p class="step-help">Ajoutez une photo : Google Gemini proposera un nom que vous pourrez corriger. L'image sera transmise à Google pour cette analyse. Le prix est facultatif et seulement indicatif.</p>
+              <div id="product-list" class="product-list"></div>
+              <button id="add-product" class="button button-outline add-product-button" type="button">＋ Ajouter un autre produit</button>
+            </section>
+
+            <section class="checkout-step" data-checkout-step="2" hidden>
+              <p class="step-help">Indiquez les coordonnées de la personne qui recevra votre colis.</p>
+              <div class="order-grid">
+                <label>Destination
+                  <select name="destination" required>
+                    <option value="benin">Bénin</option>
+                    <option value="togo">Togo</option>
+                  </select>
+                </label>
+                <label>Nom complet du destinataire<input name="customerName" required maxlength="100" placeholder="Nom et prénom"></label>
+                <label>Téléphone<input name="phone" required maxlength="30" placeholder="+229 … ou +228 …"></label>
+                <label class="wide">Ville et adresse de livraison
+                  <div class="location-picker">
+                    <input name="location" required maxlength="300" readonly placeholder="Choisissez votre adresse sur la carte">
+                    <button id="open-map" class="button button-outline" type="button">Choisir sur la carte</button>
+                  </div>
+                  <span id="location-coordinates" class="location-coordinates"></span>
+                  <input id="map-latitude" type="hidden">
+                  <input id="map-longitude" type="hidden">
+                </label>
+                <label class="wide">Informations complémentaires<textarea name="notes" rows="2" maxlength="1000" placeholder="Précisions utiles pour la livraison"></textarea></label>
+              </div>
+            </section>
+
+            <section class="checkout-step" data-checkout-step="3" hidden>
+              <p class="step-help">Vérifiez les produits et les coordonnées avant d'envoyer votre demande de devis.</p>
+              <div id="checkout-review" class="checkout-review"></div>
+              <div class="pricing-note">
+                <strong>Le prix indiqué n'est pas le prix final.</strong>
+                <span>L'administrateur vérifiera le produit et vous enverra le devis final sur WhatsApp.</span>
+                <span>Vous pourrez payer après réception du devis. La commande fournisseur ne sera lancée qu'après confirmation du paiement.</span>
+              </div>
+              <div class="quote-box" aria-live="polite">
+                <div><span>Prix indiqué (facultatif)</span><strong id="quote-products">Non renseigné</strong></div>
+                <div><span>Transport</span><strong id="quote-shipping">Inclus au devis</strong></div>
+                <div class="quote-total"><span>Montant final</span><strong id="quote-total">Devis à venir</strong></div>
+              </div>
+            </section>
+
+            <div class="checkout-navigation">
+              <button id="previous-step" class="button button-outline" type="button" hidden>← Retour</button>
+              <p id="order-message" class="form-message" aria-live="polite"></p>
+              <button id="next-step" class="button button-primary" type="button">Continuer vers la livraison →</button>
+              <button id="submit-order" class="button button-primary" type="submit" hidden>Envoyer ma demande de devis</button>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section id="admin-view" hidden>
+        <div class="section-heading admin-heading"><div><p class="eyebrow">ADMINISTRATION</p><h2>Toutes les commandes</h2></div><span class="live-label"><i></i> Actualisé automatiquement</span></div>
+        <p class="step-help">Saisissez le montant final pour envoyer le devis sur WhatsApp. Après vérification du paiement, mettez à jour le statut du colis.</p>
+        <div id="admin-orders" class="orders-list"></div>
+      </section>
+    </section>
+  </main>
+  <dialog id="quote-notice" class="quote-notice">
+    <div class="quote-notice-content">
+      <p class="eyebrow">AVANT D'ENVOYER</p>
+      <h2>Le prix sera confirmé par devis</h2>
+      <p>Le prix indiqué pour vos produits est seulement informatif. L'administrateur vérifiera votre demande et vous enverra le montant final à payer sur WhatsApp.</p>
+      <p>Aucun achat ne sera effectué avant la confirmation de votre paiement.</p>
+      <div class="quote-notice-actions">
+        <button id="edit-quote-request" class="button button-outline" type="button">Vérifier ma demande</button>
+        <button id="confirm-quote-request" class="button button-primary" type="button">Continuer</button>
+      </div>
+    </div>
+  </dialog>
+  <section id="map-modal" class="map-modal" role="dialog" aria-modal="true" aria-label="Carte de livraison" hidden>
+    <div id="delivery-map" class="delivery-map" aria-label="Carte interactive"></div>
+    <button id="close-map" class="map-close" type="button" aria-label="Fermer la carte">×</button>
+    <footer class="map-footer">
+      <div class="map-selection">
+        <strong id="map-selection-title">Lien de position</strong>
+        <span id="map-selection-detail">Collez un lien Google Maps ou choisissez un point sur la carte.</span>
+      </div>
+      <form id="map-link-form" class="map-link-form">
+        <input id="map-position-link" type="url" aria-label="Lien de la position" autocomplete="url" placeholder="Collez le lien Google Maps">
+        <button id="use-map-link" class="button button-outline" type="submit">Utiliser le lien</button>
+      </form>
+      <div class="map-actions">
+        <button id="cancel-map" class="button button-outline" type="button">Annuler</button>
+        <button id="confirm-map" class="button button-primary" type="button" disabled>Confirmer cette adresse</button>
+      </div>
+    </footer>
+  </section>
+  <footer><span>CK · Commandes et livraisons</span><span>Bénin +229 · Togo +228</span></footer>
+  <script src="/leaflet/leaflet.js" defer></script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

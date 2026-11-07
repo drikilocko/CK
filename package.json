@@ -1,0 +1,17 @@
+{
+  "name": "commande-internationale",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site de commande et de suivi de livraison au Benin et au Togo",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "leaflet": "^1.9.4"
+  }
+}
