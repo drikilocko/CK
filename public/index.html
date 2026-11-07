@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#5229dd">
   <title>CK — Vos commandes, suivies simplement</title>
-  <link rel="stylesheet" href="/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -186,6 +186,7 @@
   </dialog>
   <section id="map-modal" class="map-modal" role="dialog" aria-modal="true" aria-label="Carte de livraison" hidden>
     <div id="delivery-map" class="delivery-map" aria-label="Carte interactive"></div>
+    <button id="locate-on-map" class="button button-primary map-locate" type="button">◎ Me localiser</button>
     <button id="close-map" class="map-close" type="button" aria-label="Fermer la carte">×</button>
     <footer class="map-footer">
       <div class="map-selection">
@@ -203,7 +204,13 @@
     </footer>
   </section>
   <footer><span>CK · Commandes et livraisons</span><span>Bénin +229 · Togo +228</span></footer>
-  <script src="/leaflet/leaflet.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "maplibre-gl": "/maplibre/maplibre-gl.mjs"
+      }
+    }
+  </script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

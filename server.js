@@ -178,7 +178,7 @@ app.use(express.json({ limit: "8mb" }));
 app.use((req, res, next) => {
   initializeServer().then(() => next()).catch(next);
 });
-app.use("/leaflet", express.static(path.join(ROOT, "node_modules", "leaflet", "dist")));
+app.use("/maplibre", express.static(path.join(ROOT, "node_modules", "maplibre-gl", "dist")));
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(ROOT, "public", "index.html"));
 });

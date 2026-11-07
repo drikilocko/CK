@@ -17,7 +17,7 @@ body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink);
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
-.topbar { height: 76px; padding: 0 max(6vw, calc((100vw - 1200px) / 2)); display: flex; align-items: center; justify-content: space-between; background: var(--white); border-bottom: 1px solid var(--line); }
+.topbar { position: sticky; top: 14px; z-index: 20; width: min(1200px, calc(100% - 48px)); height: 72px; margin: 14px auto 0; padding: 0 clamp(20px, 4vw, 40px); display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 18px; background: var(--white); box-shadow: 0 12px 30px #32168712; }
 .brand { color: var(--green-dark); text-decoration: none; font: 800 25px Manrope, sans-serif; letter-spacing: -1.5px; }
 .brand span { color: #e1a844; }
 .account-bar { display: flex; align-items: center; gap: 18px; font-size: 14px; font-weight: 600; }
@@ -134,14 +134,15 @@ h2 { font-size: 25px; }
 .location-coordinates { color: var(--muted); font-size: 11px; font-weight: 400; }
 body.map-open { overflow: hidden; }
 .map-modal { position: fixed; z-index: 2000; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: white; }
+.map-locate { position: absolute; z-index: 1000; top: max(16px, env(safe-area-inset-top)); left: 16px; min-height: 42px; border-radius: 22px; box-shadow: 0 2px 9px #132b1c20; }
+.map-locate:disabled { cursor: wait; opacity: .7; }
 .map-close { position: absolute; z-index: 1000; top: max(16px, env(safe-area-inset-top)); right: 16px; display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: white; color: var(--ink); font-size: 28px; box-shadow: 0 2px 9px #132b1c20; }
 .delivery-map { z-index: 1; width: 100%; height: 100%; background: #e8eee8; }
-.map-modal .leaflet-top { top: 14px; }
-.map-modal .leaflet-right { right: 14px; }
-.map-modal .leaflet-control-zoom a { width: 39px; height: 39px; line-height: 39px; }
-.delivery-map.map-grayscale .leaflet-tile { filter: grayscale(1) contrast(1.08); }
-.delivery-map .leaflet-control-attribution { background: #fffF; color: #333; }
-.delivery-map .leaflet-control-attribution a { color: #111; }
+.map-modal .maplibregl-ctrl-top-right { top: 14px; right: 14px; }
+.map-modal .maplibregl-ctrl-group button { width: 39px; height: 39px; }
+.delivery-map.map-grayscale .maplibregl-canvas { filter: grayscale(1) contrast(1.08); }
+.delivery-map .maplibregl-ctrl-attrib { background: #fffF; color: #333; }
+.delivery-map .maplibregl-ctrl-attrib a { color: #111; }
 .map-footer { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "link link" "selection actions"; align-items: center; gap: 12px 20px; padding: 14px max(22px, calc((100vw - 1200px) / 2)); padding-bottom: max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: white; box-shadow: 0 -4px 18px #132b1c0c; }
 .map-selection { display: grid; gap: 5px; min-width: 0; }
 .map-selection { grid-area: selection; }
@@ -242,6 +243,7 @@ footer { display: flex; justify-content: space-between; padding: 22px max(6vw, c
   .checkout-navigation .form-message { width: 100%; order: 3; }
   .checkout-navigation .button { min-height: 46px; }
   .location-picker { align-items: stretch; flex-direction: column; }
+  .map-locate { top: max(12px, env(safe-area-inset-top)); left: 12px; }
   .map-close { top: max(12px, env(safe-area-inset-top)); right: 12px; }
   .map-footer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "link" "selection" "actions"; gap: 10px; padding: 13px 15px; padding-bottom: max(13px, env(safe-area-inset-bottom)); }
   .map-link-form { gap: 7px; }
@@ -537,6 +539,7 @@ footer {
 }
 
 @media (max-width: 760px) {
+  .topbar { top: 10px; width: calc(100% - 28px); height: 64px; margin-top: 10px; padding: 0 18px; border-radius: 15px; }
   main { padding-top: 26px; }
   .auth-layout { gap: 25px; }
   .intro {

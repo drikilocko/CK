@@ -1,3 +1,5 @@
+import * as maplibregl from "maplibre-gl";
+
 const statusNames = {
   demande_recue: "Demande reçue · devis à préparer",
   devis_envoye: "Devis envoyé · attente de paiement",
@@ -180,10 +182,15 @@ function setCheckoutStep(step) {
 function updateMapSelection(latlng) {
   selectedMapPoint = { lat: latlng.lat, lng: latlng.lng };
   if (!deliveryMarker) {
-    deliveryMarker = L.marker(latlng, { draggable: true }).addTo(deliveryMap);
-    deliveryMarker.on("dragend", () => updateMapSelection(deliveryMarker.getLatLng()));
+    deliveryMarker = new maplibregl.Marker({ draggable: true })
+      .setLngLat([latlng.lng, latlng.lat])
+      .addTo(deliveryMap);
+    deliveryMarker.on("dragend", () => {
+      const position = deliveryMarker.getLngLat();
+      updateMapSelection({ lat: position.lat, lng: position.lng });
+    });
   } else {
-    deliveryMarker.setLatLng(latlng);
+    deliveryMarker.setLngLat([latlng.lng, latlng.lat]);
   }
   const coordinates = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
   selectedMapLink = "";
@@ -206,6 +213,10 @@ function destinationMapCenter() {
   return $("#order-form [name=destination]").value === "togo"
     ? [6.1375, 1.2123]
     : [6.3703, 2.3912];
+}
+
+function mapCoordinates([lat, lng]) {
+  return [lng, lat];
 }
 
 function resetMapSelection() {
@@ -271,9 +282,8 @@ function useMapPositionLink(event) {
   selectedMapLink = url.toString();
   const coordinates = coordinatesFromMapUrl(url);
   if (coordinates) {
-    const point = L.latLng(coordinates.lat, coordinates.lng);
-    deliveryMap.setView(point, 16);
-    updateMapSelection(point);
+    deliveryMap.flyTo({ center: [coordinates.lng, coordinates.lat], zoom: 16 });
+    updateMapSelection(coordinates);
     selectedMapLink = url.toString();
     input.value = selectedMapLink;
     $("#map-selection-title").textContent = "Lien de position prêt";
@@ -291,26 +301,36 @@ function openDeliveryMap() {
   $("#map-modal").hidden = false;
   document.body.classList.add("map-open");
   if (!deliveryMap) {
-    deliveryMap = L.map("delivery-map", { zoomControl: false, attributionControl: false })
-      .setView(mapDefaultLocation(), 14);
-    L.control.attribution({ prefix: false, position: "bottomright" }).addTo(deliveryMap);
-    L.control.zoom({ position: "topright" }).addTo(deliveryMap);
+    deliveryMap = new maplibregl.Map({
+      container: "delivery-map",
+      style: {
+        version: 8,
+        sources: {
+          openstreetmap: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+          }
+        },
+        layers: [{ id: "openstreetmap", type: "raster", source: "openstreetmap" }]
+      },
+      center: mapCoordinates(mapDefaultLocation()),
+      zoom: 14,
+      attributionControl: false
+    });
+    deliveryMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    deliveryMap.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
     deliveryMap.getContainer().classList.add("map-grayscale");
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      keepBuffer: 1,
-      updateWhenIdle: true
-    }).addTo(deliveryMap);
-    deliveryMap.on("click", (event) => updateMapSelection(event.latlng));
+    deliveryMap.on("click", (event) => updateMapSelection(event.lngLat));
   } else {
-    deliveryMap.setView(mapDefaultLocation(), 14);
+    deliveryMap.jumpTo({ center: mapCoordinates(mapDefaultLocation()), zoom: 14 });
   }
   const savedLat = Number($("#map-latitude").value);
   const savedLng = Number($("#map-longitude").value);
   if (selectedMapLink) {
     if (Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng) {
-      updateMapSelection(L.latLng(savedLat, savedLng));
+      updateMapSelection({ lat: savedLat, lng: savedLng });
       selectedMapLink = $("#order-form [name=location]").value;
     }
     $("#map-position-link").value = selectedMapLink;
@@ -318,12 +338,47 @@ function openDeliveryMap() {
     $("#map-selection-detail").textContent = "Ce lien sera enregistré avec la commande.";
     $("#confirm-map").disabled = false;
   } else if (Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng) {
-    updateMapSelection(L.latLng(savedLat, savedLng));
+    updateMapSelection({ lat: savedLat, lng: savedLng });
   } else {
     resetMapSelection();
   }
-  window.setTimeout(() => deliveryMap.invalidateSize({ pan: false }), 0);
+  window.setTimeout(() => deliveryMap.resize(), 0);
   $("#close-map").focus();
+}
+
+function locateOnMap() {
+  const button = $("#locate-on-map");
+  const detail = $("#map-selection-detail");
+  if (!navigator.geolocation) {
+    detail.textContent = "La géolocalisation n'est pas prise en charge par ce navigateur.";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Localisation…";
+  detail.textContent = "Recherche de votre position GPS…";
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const point = { lat: coords.latitude, lng: coords.longitude };
+      deliveryMap.flyTo({ center: [point.lng, point.lat], zoom: 17 });
+      updateMapSelection(point);
+      $("#map-selection-title").textContent = "Votre position est sélectionnée";
+      detail.textContent = "Le repère indique votre position. Vous pouvez le déplacer avant de confirmer.";
+      button.disabled = false;
+      button.textContent = "◎ Me localiser";
+    },
+    (error) => {
+      const messages = {
+        1: "Autorisez l'accès à votre position dans les réglages du navigateur, puis réessayez.",
+        2: "Votre position est indisponible. Vérifiez le GPS ou la connexion, puis réessayez.",
+        3: "La recherche a pris trop de temps. Réessayez."
+      };
+      detail.textContent = messages[error.code] || "Impossible d'obtenir votre position. Réessayez.";
+      button.disabled = false;
+      button.textContent = "◎ Me localiser";
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+  );
 }
 
 function closeDeliveryMap() {
@@ -631,6 +686,7 @@ window.addEventListener("hashchange", () => {
 
 $("#add-product").addEventListener("click", addProductRow);
 $("#open-map").addEventListener("click", openDeliveryMap);
+$("#locate-on-map").addEventListener("click", locateOnMap);
 $("#close-map").addEventListener("click", closeDeliveryMap);
 $("#cancel-map").addEventListener("click", closeDeliveryMap);
 $("#confirm-map").addEventListener("click", confirmDeliveryLocation);
@@ -674,7 +730,7 @@ $("#order-form [name=destination]").addEventListener("change", () => {
   $("#map-position-link").value = "";
   if ($("#map-modal").hidden || !deliveryMap) return;
   resetMapSelection();
-  deliveryMap.setView(destinationMapCenter(), 13);
+  deliveryMap.jumpTo({ center: mapCoordinates(destinationMapCenter()), zoom: 13 });
 });
 $("#order-form").addEventListener("submit", async (event) => {
   event.preventDefault();

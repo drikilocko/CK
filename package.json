@@ -12,6 +12,6 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.21.2",
-    "leaflet": "^1.9.4"
+    "maplibre-gl": "^6.16.0"
   }
 }
