@@ -22,6 +22,7 @@ const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 let signupMode = false;
 let refreshTimer = null;
+let adminOrdersCache = [];
 let checkoutStep = 1;
 let deliveryMap = null;
 let deliveryMarker = null;
@@ -31,7 +32,14 @@ let quoteNoticeConfirmed = false;
 const customerPageHashes = {
   home: "#accueil",
   orders: "#mes-commandes",
-  order: "#commander"
+  order: "#commander",
+  faq: "#aide"
+};
+const paymentStatusNames = {
+  not_started: "Paiement non envoyé",
+  awaiting_proof: "En attente de paiement",
+  proof_received: "Preuve reçue · à vérifier",
+  verified: "Paiement vérifié"
 };
 const isAdminRoute = window.location.pathname.replace(/\/+$/, "") === "/admin";
 
@@ -536,10 +544,12 @@ function refreshQuote() {
   $("#quote-total").textContent = "Devis à venir";
 }
 
-function statusOptions(current) {
-  return statusOrder.map((status) =>
-    `<option value="${status}" ${status === current ? "selected" : ""}>${statusNames[status]}</option>`
-  ).join("");
+function statusOptions(current, paymentStatus) {
+  const paymentRequiredIndex = statusOrder.indexOf("colis_en_commande");
+  return statusOrder.map((status) => {
+    const disabled = paymentStatus !== "verified" && statusOrder.indexOf(status) >= paymentRequiredIndex;
+    return `<option value="${status}" ${status === current ? "selected" : ""} ${disabled ? "disabled" : ""}>${statusNames[status]}</option>`;
+  }).join("");
 }
 
 function renderOrder(order, isAdmin) {
@@ -551,23 +561,54 @@ function renderOrder(order, isAdmin) {
     <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
       Tél. ${escapeHtml(order.phone)} · ${escapeHtml(order.location)}${order.notes ? `<br>Note : ${escapeHtml(order.notes)}` : ""}
     </div>` : `<div class="order-address">${escapeHtml(order.location)} · ${escapeHtml(order.phone)}</div>`;
+  const paymentProofForm = !isAdmin && order.quoteTotalFcfa && order.paymentStatus !== "verified" ? `
+    <form class="payment-proof-form" data-order-id="${order.id}">
+      <strong>${paymentStatusNames[order.paymentStatus] || paymentStatusNames.awaiting_proof}</strong>
+      <label>Moyen de paiement
+        <select name="paymentMethod" required>
+          <option value="">Choisir un moyen de paiement</option>
+          <option value="Mobile Money" ${order.paymentMethod === "Mobile Money" ? "selected" : ""}>Mobile Money</option>
+          <option value="Virement bancaire" ${order.paymentMethod === "Virement bancaire" ? "selected" : ""}>Virement bancaire</option>
+          <option value="Autre" ${order.paymentMethod === "Autre" ? "selected" : ""}>Autre</option>
+        </select>
+      </label>
+      <label>Référence de transaction (facultatif)
+        <input name="paymentReference" maxlength="100" value="${escapeHtml(order.paymentReference || "")}" placeholder="Ex. numéro de transaction">
+      </label>
+      <label>Reçu de paiement (JPG, PNG, WEBP ou PDF · 5 Mo max)
+        <input name="proofFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+      </label>
+      <button class="button button-outline" type="submit">${order.hasPaymentProof ? "Remplacer le reçu" : "Envoyer le reçu"}</button>
+      <span class="payment-proof-message" aria-live="polite"></span>
+    </form>` : "";
   const controls = isAdmin ? `
     <div class="admin-controls">
-      <label class="admin-quote-label" for="quote-total-${order.id}">Devis final (FCFA)
-        <input id="quote-total-${order.id}" type="number" required min="1" max="1000000000" step="1" value="${order.quoteTotalFcfa || ""}" placeholder="Montant total">
-      </label>
-      <button class="button button-primary send-quote" type="button" data-quote-id="${order.id}"
-        data-reference="${escapeHtml(order.reference)}" data-phone="${escapeHtml(order.phone)}" data-customer="${escapeHtml(order.customerName)}" data-destination="${order.destination}">
-        Enregistrer le devis et ouvrir WhatsApp
-      </button>
+      ${order.paymentStatus === "proof_received" ? `
+        <div class="payment-review">
+          <strong>Preuve de paiement à vérifier</strong>
+          <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>
+          <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">Confirmer le paiement</button>
+          ${order.paymentMethod ? `<span>Moyen : ${escapeHtml(order.paymentMethod)}</span>` : ""}
+          ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
+        </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Paiement vérifié</div>' : ""}
+      ${["proof_received", "verified"].includes(order.paymentStatus) ? "" : `
+        <label class="admin-quote-label" for="quote-total-${order.id}">Devis final (FCFA)
+          <input id="quote-total-${order.id}" type="number" required min="1" max="1000000000" step="1" value="${order.quoteTotalFcfa || ""}" placeholder="Montant total">
+        </label>
+        <button class="button button-primary send-quote" type="button" data-quote-id="${order.id}"
+          data-reference="${escapeHtml(order.reference)}" data-phone="${escapeHtml(order.phone)}" data-customer="${escapeHtml(order.customerName)}" data-destination="${order.destination}">
+          Enregistrer le devis et ouvrir WhatsApp
+        </button>`}
       <label class="admin-status-label">Suivi
-        <select aria-label="Modifier le statut du colis ${escapeHtml(order.reference)}" data-order-id="${order.id}">${statusOptions(order.status)}</select>
+        <select aria-label="Modifier le statut du colis ${escapeHtml(order.reference)}" data-order-id="${order.id}">${statusOptions(order.status, order.paymentStatus)}</select>
       </label>
     </div>
   ` : `<div class="order-summary">
     ${order.quoteTotalFcfa
-      ? `<span>Devis reçu</span><strong>À payer : ${formatNumber(order.quoteTotalFcfa)} FCFA</strong>`
+      ? `<span>Devis reçu</span><strong>À payer : ${formatNumber(order.quoteTotalFcfa)} FCFA</strong>${paymentStatusNames[order.paymentStatus] ? `<span>${paymentStatusNames[order.paymentStatus]}</span>` : ""}`
       : "<span>Le devis final vous sera envoyé sur WhatsApp.</span>"}
+    ${paymentProofForm}
+    ${order.paymentStatus === "verified" ? '<strong class="payment-verified">✓ Paiement vérifié</strong>' : ""}
   </div>`;
   return `<article class="order-card ${isAdmin ? "admin-card" : ""}">
     <div>
@@ -575,6 +616,23 @@ function renderOrder(order, isAdmin) {
       <div class="order-items">${items}</div>${adminInfo}
     </div>${controls}
   </article>`;
+}
+
+function renderAdminOrders() {
+  const search = $("#admin-order-search").value.trim();
+  const normalizedSearch = search.toLocaleLowerCase("fr");
+  const phoneSearch = search.replace(/\D/g, "");
+  const orders = adminOrdersCache.filter((order) => {
+    const matchesReference = order.reference.toLocaleLowerCase("fr").includes(normalizedSearch);
+    const matchesPhone = phoneSearch && order.phone.replace(/\D/g, "").includes(phoneSearch);
+    return matchesReference || matchesPhone;
+  });
+  $("#admin-search-results").textContent = search
+    ? `${orders.length} commande(s) trouvée(s) sur ${adminOrdersCache.length}.`
+    : `${adminOrdersCache.length} commande(s) au total.`;
+  $("#admin-orders").innerHTML = orders.length
+    ? orders.map((order) => renderOrder(order, true)).join("")
+    : '<div class="empty-state">Aucune commande ne correspond à cette recherche.</div>';
 }
 
 function showOrderConfirmation(order) {
@@ -613,10 +671,18 @@ async function loadOrders() {
   try {
     const { orders } = await api("/api/orders");
     const target = currentUser.role === "admin" ? $("#admin-orders") : $("#orders-list");
-    if (currentUser.role !== "admin") $("#home-order-count").textContent = String(orders.length);
-    target.innerHTML = orders.length
-      ? orders.map((order) => renderOrder(order, currentUser.role === "admin")).join("")
-      : '<div class="empty-state">Aucune commande pour le moment.</div>';
+    if (currentUser.role === "admin") {
+      adminOrdersCache = orders;
+      $("#admin-quotes-pending").textContent = String(orders.filter((order) => order.status === "demande_recue").length);
+      $("#admin-payments-pending").textContent = String(orders.filter((order) => order.paymentStatus === "proof_received").length);
+      $("#admin-orders-to-ship").textContent = String(orders.filter((order) => order.status === "commande_fournisseur").length);
+      renderAdminOrders();
+    } else {
+      $("#home-order-count").textContent = String(orders.length);
+      target.innerHTML = orders.length
+        ? orders.map((order) => renderOrder(order, false)).join("")
+        : '<div class="empty-state">Aucune commande pour le moment.</div>';
+    }
   } catch (error) {
     console.error(error);
   }
@@ -665,6 +731,23 @@ function showApp(user) {
 
 $("#login-tab").addEventListener("click", () => setAuthMode(false));
 $("#signup-tab").addEventListener("click", () => setAuthMode(true));
+$("#contact-menu-toggle").addEventListener("click", () => {
+  const menu = $("#contact-menu");
+  const isOpening = menu.hidden;
+  menu.hidden = !isOpening;
+  $("#contact-menu-toggle").setAttribute("aria-expanded", String(isOpening));
+});
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".contact-menu-wrap")) return;
+  $("#contact-menu").hidden = true;
+  $("#contact-menu-toggle").setAttribute("aria-expanded", "false");
+});
+$("#contact-menu").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  $("#contact-menu").hidden = true;
+  $("#contact-menu-toggle").setAttribute("aria-expanded", "false");
+  $("#contact-menu-toggle").focus();
+});
 $("#auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = $("#auth-message");
@@ -699,6 +782,40 @@ $("#logout-button").addEventListener("click", async () => {
 $("#customer-view").addEventListener("click", (event) => {
   const button = event.target.closest("[data-page-link]");
   if (button) showCustomerPage(button.dataset.pageLink);
+});
+$("#admin-order-search").addEventListener("input", renderAdminOrders);
+$("#orders-list").addEventListener("submit", async (event) => {
+  const form = event.target.closest(".payment-proof-form");
+  if (!form) return;
+  event.preventDefault();
+  const button = form.querySelector("button[type=submit]");
+  const message = form.querySelector(".payment-proof-message");
+  const data = new FormData(form);
+  const file = data.get("proofFile");
+  if (!(file instanceof File) || !file.size) {
+    message.textContent = "Sélectionnez le reçu de paiement.";
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    message.textContent = "Le fichier ne doit pas dépasser 5 Mo.";
+    return;
+  }
+  button.disabled = true;
+  message.textContent = "Envoi du reçu…";
+  try {
+    await api(`/api/orders/${form.dataset.orderId}/payment-proof`, {
+      method: "POST",
+      body: JSON.stringify({
+        proofData: await readFileAsDataUrl(file),
+        paymentMethod: data.get("paymentMethod"),
+        paymentReference: data.get("paymentReference")
+      })
+    });
+    await loadOrders();
+  } catch (error) {
+    message.textContent = error.message;
+    button.disabled = false;
+  }
 });
 window.addEventListener("hashchange", () => {
   if (!currentUser || currentUser.role === "admin") return;
@@ -825,6 +942,44 @@ $("#admin-orders").addEventListener("change", async (event) => {
 });
 
 $("#admin-orders").addEventListener("click", async (event) => {
+  const proofButton = event.target.closest("button[data-proof-order-id]");
+  if (proofButton) {
+    const proofWindow = window.open("about:blank", "_blank");
+    if (!proofWindow) {
+      window.alert("Autorisez les fenêtres pop-up pour consulter la preuve.");
+      return;
+    }
+    proofWindow.opener = null;
+    proofButton.disabled = true;
+    try {
+      const { url } = await api(`/api/orders/${proofButton.dataset.proofOrderId}/payment-proof-link`, {
+        method: "POST",
+        body: "{}"
+      });
+      proofWindow.location.href = url;
+    } catch (error) {
+      proofWindow.close();
+      window.alert(error.message);
+    } finally {
+      proofButton.disabled = false;
+    }
+    return;
+  }
+  const verifyButton = event.target.closest("button[data-verify-payment-id]");
+  if (verifyButton) {
+    verifyButton.disabled = true;
+    try {
+      await api(`/api/orders/${verifyButton.dataset.verifyPaymentId}/payment-status`, {
+        method: "PATCH",
+        body: JSON.stringify({ paymentStatus: "verified" })
+      });
+      await loadOrders();
+    } catch (error) {
+      window.alert(error.message);
+      verifyButton.disabled = false;
+    }
+    return;
+  }
   const button = event.target.closest("button[data-quote-id]");
   if (!button) return;
   const totalInput = $(`#quote-total-${button.dataset.quoteId}`);

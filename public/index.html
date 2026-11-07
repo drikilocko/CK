@@ -11,9 +11,31 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/">CK<span>.</span></a>
-    <div id="account-bar" class="account-bar" hidden>
-      <span id="account-name"></span>
-      <button id="logout-button" class="button button-quiet" type="button">Déconnexion</button>
+    <div class="header-actions">
+      <div class="contact-menu-wrap">
+        <button id="contact-menu-toggle" class="contact-menu-toggle" type="button" aria-label="Contacter CK sur WhatsApp" aria-expanded="false" aria-controls="contact-menu">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.58 2.8.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="contact-menu" class="contact-menu" role="menu" aria-label="Choisir le pays" hidden>
+          <p>Contacter CK sur WhatsApp</p>
+          <a role="menuitem" href="https://wa.me/22997158484?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20CK." target="_blank" rel="noopener noreferrer">
+            <span class="contact-country-flag" aria-hidden="true">🇧🇯</span>
+            <span><strong>Bénin</strong><small>+229 97 15 84 84</small></span>
+            <span class="contact-menu-arrow" aria-hidden="true">↗</span>
+          </a>
+          <a role="menuitem" href="https://wa.me/22890290081?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20CK." target="_blank" rel="noopener noreferrer">
+            <span class="contact-country-flag" aria-hidden="true">🇹🇬</span>
+            <span><strong>Togo</strong><small>+228 90 29 00 81</small></span>
+            <span class="contact-menu-arrow" aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+      <div id="account-bar" class="account-bar" hidden>
+        <span id="account-name"></span>
+        <button id="logout-button" class="button button-quiet" type="button">Déconnexion</button>
+      </div>
     </div>
   </header>
 
@@ -45,6 +67,7 @@
           <button class="nav-link" type="button" data-page-link="home">Accueil</button>
           <button class="nav-link" type="button" data-page-link="order">Commander</button>
           <button class="nav-link" type="button" data-page-link="orders">Mes commandes</button>
+          <button class="nav-link" type="button" data-page-link="faq">Aide</button>
         </nav>
 
         <section id="customer-page-confirmation" class="confirmation-page" aria-live="polite" hidden>
@@ -113,6 +136,22 @@
           <div id="orders-list" class="orders-list"></div>
         </section>
 
+        <section id="customer-page-faq" class="customer-page faq-page" hidden>
+          <div class="section-heading page-heading">
+            <div><p class="eyebrow">AIDE ET ASSISTANCE</p><h1>Questions fréquentes</h1></div>
+          </div>
+          <p class="faq-intro">Besoin d'aide pour commander ou suivre un colis ? Voici les réponses aux questions les plus fréquentes.</p>
+          <div class="faq-list">
+            <details><summary>Comment passer une commande ?</summary><p>Ajoutez vos produits avec une photo ou un lien, renseignez le destinataire et son adresse, puis envoyez la demande. Vous recevrez une référence de colis.</p></details>
+            <details><summary>Le prix indiqué est-il le prix final ?</summary><p>Non. Un prix saisi pour le produit est indicatif. CK vérifie la disponibilité et vous envoie un devis final, transport compris, avant tout achat.</p></details>
+            <details><summary>Quand dois-je payer ?</summary><p>Attendez le devis final de CK. Après le paiement, transmettez votre reçu depuis la commande correspondante. CK vérifiera le paiement avant de commander le produit.</p></details>
+            <details><summary>Comment suivre mon colis ?</summary><p>Ouvrez « Mes commandes » pour consulter le statut et la référence de chaque colis. Contactez CK sur WhatsApp si vous avez une question sur le suivi.</p></details>
+            <details><summary>Quels produits peuvent être soumis à des restrictions ?</summary><p>Les batteries, liquides, parfums, aérosols, médicaments, denrées alimentaires, contrefaçons et articles dangereux peuvent être interdits ou soumis à des conditions selon le pays et le transporteur. Cette liste est indicative et non exhaustive. Demandez confirmation à CK avant l'achat.</p></details>
+            <details><summary>Comment contacter CK ?</summary><p>Utilisez l'icône téléphone dans le header, puis choisissez le WhatsApp du Bénin ou du Togo.</p></details>
+          </div>
+          <div class="faq-contact"><strong>Vous n'avez pas trouvé votre réponse ?</strong><span>Contactez-nous sur WhatsApp depuis l'icône en haut de la page.</span></div>
+        </section>
+
         <section id="customer-page-order" class="customer-page" hidden>
           <form id="order-form" class="panel order-panel">
             <div class="section-heading">
@@ -128,6 +167,10 @@
 
             <section class="checkout-step" data-checkout-step="1">
               <p class="step-help">Ajoutez une photo : Google Gemini proposera un nom que vous pourrez corriger. L'image sera transmise à Google pour cette analyse. Le prix est facultatif et seulement indicatif.</p>
+              <div class="customs-note">
+                <strong>Vérifiez les restrictions avant de commander</strong>
+                <span>Les batteries, liquides, parfums, aérosols, médicaments, aliments et articles dangereux peuvent être soumis à des restrictions ou refusés selon le pays et le transporteur. Cette liste est indicative et non exhaustive ; contactez CK avant l'achat si vous avez un doute.</span>
+              </div>
               <div id="product-list" class="product-list"></div>
               <button id="add-product" class="button button-outline add-product-button" type="button">＋ Ajouter un autre produit</button>
             </section>
@@ -184,6 +227,15 @@
       <section id="admin-view" hidden>
         <div class="section-heading admin-heading"><div><p class="eyebrow">ADMINISTRATION</p><h2>Toutes les commandes</h2></div><span class="live-label"><i></i> Actualisé automatiquement</span></div>
         <p class="step-help">Saisissez le montant final pour envoyer le devis sur WhatsApp. Après vérification du paiement, mettez à jour le statut du colis.</p>
+        <div class="admin-dashboard" aria-label="Résumé des commandes">
+          <article class="admin-stat"><span>Devis à préparer</span><strong id="admin-quotes-pending">0</strong></article>
+          <article class="admin-stat"><span>Paiements à vérifier</span><strong id="admin-payments-pending">0</strong></article>
+          <article class="admin-stat"><span>Commandes fournisseur</span><strong id="admin-orders-to-ship">0</strong></article>
+        </div>
+        <label class="order-search-label">Rechercher une commande
+          <input id="admin-order-search" type="search" autocomplete="off" placeholder="Référence ou téléphone du client">
+        </label>
+        <p id="admin-search-results" class="admin-search-results" aria-live="polite"></p>
         <div id="admin-orders" class="orders-list"></div>
       </section>
     </section>

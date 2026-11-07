@@ -36,6 +36,14 @@ create table if not exists public.ck_orders (
   updated_at timestamptz not null default now()
 );
 
+alter table public.ck_orders
+  add column if not exists payment_status text not null default 'not_started'
+    check (payment_status in ('not_started', 'awaiting_proof', 'proof_received', 'verified')),
+  add column if not exists payment_method text,
+  add column if not exists payment_reference text,
+  add column if not exists payment_proof_path text,
+  add column if not exists payment_verified_at timestamptz;
+
 create index if not exists idx_ck_sessions_expiry on public.ck_sessions(expires_at);
 create index if not exists idx_ck_orders_user_id on public.ck_orders(user_id);
 
@@ -71,6 +79,19 @@ values (
   true,
   4194304,
   array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'ck-payment-proofs',
+  'ck-payment-proofs',
+  false,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 )
 on conflict (id) do update
 set public = excluded.public,

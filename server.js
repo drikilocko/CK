@@ -14,6 +14,13 @@ const STATUSES = [
   "arrive",
   "livre"
 ];
+const PAYMENT_METHODS = ["Mobile Money", "Virement bancaire", "Autre"];
+const PAYMENT_PROOF_TYPES = new Map([
+  ["image/jpeg", { extension: "jpg", matches: (image) => image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff }],
+  ["image/png", { extension: "png", matches: (image) => image.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
+  ["image/webp", { extension: "webp", matches: (image) => image.toString("ascii", 0, 4) === "RIFF" && image.toString("ascii", 8, 12) === "WEBP" }],
+  ["application/pdf", { extension: "pdf", matches: (image) => image.toString("ascii", 0, 5) === "%PDF-" }]
+]);
 
 function loadLocalEnv() {
   const envFile = path.join(ROOT, ".env");
@@ -92,6 +99,27 @@ async function createProductImageBucket() {
   throw new Error(data.message || `Impossible de créer le bucket ck-product-images (${response.status}).`);
 }
 
+async function createPaymentProofBucket() {
+  const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      id: "ck-payment-proofs",
+      name: "ck-payment-proofs",
+      public: false,
+      file_size_limit: 5242880,
+      allowed_mime_types: ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+    })
+  });
+  if (response.ok || response.status === 409) return;
+  const data = await response.json().catch(() => ({}));
+  throw new Error(data.message || `Impossible de créer le bucket privé ck-payment-proofs (${response.status}).`);
+}
+
 async function uploadProductImage(filename, mimeType, image, createBucketOnMissing = true) {
   const response = await fetch(
     `${supabaseUrl}/storage/v1/object/ck-product-images/${encodeURIComponent(filename)}`,
@@ -119,6 +147,34 @@ async function uploadProductImage(filename, mimeType, image, createBucketOnMissi
     throw new Error(data.message || `Impossible d'enregistrer l'image dans Supabase Storage (${response.status}).`);
   }
   return `${supabaseUrl}/storage/v1/object/public/ck-product-images/${encodeURIComponent(filename)}`;
+}
+
+async function uploadPaymentProof(filename, mimeType, image) {
+  const encodedPath = filename.split("/").map(encodeURIComponent).join("/");
+  const upload = () => fetch(`${supabaseUrl}/storage/v1/object/ck-payment-proofs/${encodedPath}`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": mimeType,
+      "x-upsert": "true"
+    },
+    body: image
+  });
+  let response = await upload();
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 404 && /bucket not found/i.test(data.message || "")) {
+      await createPaymentProofBucket();
+      response = await upload();
+    } else {
+      throw new Error(data.message || `Impossible d'enregistrer la preuve de paiement (${response.status}).`);
+    }
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || `Impossible d'enregistrer la preuve de paiement (${response.status}).`);
+  }
 }
 
 async function verifySupabaseConfig() {
@@ -153,6 +209,7 @@ async function checkSupabaseTables() {
     await supabaseRequest("ck_sessions", { query: { select: "token_hash", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "id", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "quote_total_fcfa,quote_sent_at", limit: 0 } });
+    await supabaseRequest("ck_orders", { query: { select: "payment_status,payment_method,payment_reference,payment_proof_path,payment_verified_at", limit: 0 } });
   } catch (error) {
     if (["42P01", "PGRST205"].includes(error.code)) {
       throw new Error("Tables CK manquantes dans Supabase. Exécutez supabase-schema.sql dans Supabase > SQL Editor.");
@@ -506,6 +563,10 @@ function mapOrder(row) {
     shippingFcfa: row.shipping_fcfa,
     totalFcfa: row.total_fcfa,
     quoteTotalFcfa: row.quote_total_fcfa,
+    paymentStatus: row.payment_status || "not_started",
+    paymentMethod: row.payment_method,
+    paymentReference: row.payment_reference,
+    hasPaymentProof: Boolean(row.payment_proof_path),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -545,11 +606,13 @@ app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, n
       query: {
         id: `eq.${req.params.id}`,
         status: "in.(demande_recue,devis_envoye)",
+        payment_status: "in.(not_started,awaiting_proof)",
         select: "id"
       },
       body: {
         quote_total_fcfa: quoteTotalFcfa,
         status: "devis_envoye",
+        payment_status: "awaiting_proof",
         quote_sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       },
@@ -562,17 +625,128 @@ app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, n
   }
 });
 
+app.post("/api/orders/:id/payment-proof", requireAuth, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: {
+        select: "id,user_id,quote_total_fcfa,payment_status",
+        id: `eq.${req.params.id}`,
+        limit: 1
+      }
+    });
+    if (!order || (req.user.role !== "admin" && order.user_id !== req.user.id)) {
+      return res.status(404).json({ error: "Commande introuvable." });
+    }
+    if (!order.quote_total_fcfa || !["awaiting_proof", "proof_received"].includes(order.payment_status)) {
+      return res.status(409).json({ error: "Un devis doit être envoyé avant de transmettre une preuve de paiement." });
+    }
+    const proofData = typeof req.body.proofData === "string" ? req.body.proofData : "";
+    const match = proofData.match(/^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) return res.status(400).json({ error: "Ajoutez un reçu au format JPG, PNG, WEBP ou PDF." });
+    const paymentMethod = typeof req.body.paymentMethod === "string" ? req.body.paymentMethod : "";
+    if (!PAYMENT_METHODS.includes(paymentMethod)) {
+      return res.status(400).json({ error: "Choisissez un moyen de paiement valide." });
+    }
+    const image = Buffer.from(match[2], "base64");
+    if (!image.length || image.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: "La preuve doit peser au maximum 5 Mo." });
+    }
+    const proofType = PAYMENT_PROOF_TYPES.get(match[1]);
+    if (!proofType.matches(image)) {
+      return res.status(400).json({ error: "Le contenu du fichier ne correspond pas au format annoncé." });
+    }
+    const filename = `${order.id}/receipt.${proofType.extension}`;
+    await uploadPaymentProof(filename, match[1], image);
+    const updated = await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${order.id}`, select: "id" },
+      body: {
+        payment_status: "proof_received",
+        payment_method: paymentMethod,
+        payment_reference: typeof req.body.paymentReference === "string" ? req.body.paymentReference.trim().slice(0, 100) : "",
+        payment_proof_path: filename,
+        updated_at: new Date().toISOString()
+      },
+      prefer: "return=representation"
+    });
+    if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/orders/:id/payment-proof-link", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "payment_proof_path", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    if (!order?.payment_proof_path) return res.status(404).json({ error: "Aucune preuve de paiement n'est jointe." });
+    const objectPath = order.payment_proof_path.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(`${supabaseUrl}/storage/v1/object/sign/ck-payment-proofs/${objectPath}`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ expiresIn: 300 })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || typeof result.signedURL !== "string") {
+      return res.status(502).json({ error: result.message || "Impossible d'ouvrir la preuve de paiement." });
+    }
+    const signedUrl = result.signedURL.startsWith("http")
+      ? result.signedURL
+      : `${supabaseUrl}/storage/v1${result.signedURL.startsWith("/") ? "" : "/"}${result.signedURL}`;
+    res.json({ url: signedUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/orders/:id/payment-status", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id) || req.body.paymentStatus !== "verified") {
+      return res.status(400).json({ error: "Statut de paiement invalide." });
+    }
+    const updated = await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: {
+        id: `eq.${req.params.id}`,
+        payment_status: "eq.proof_received",
+        payment_proof_path: "not.is.null",
+        select: "id"
+      },
+      body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      prefer: "return=representation"
+    });
+    if (!updated.length) return res.status(409).json({ error: "Aucune preuve en attente pour cette commande." });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const status = req.body.status;
     if (!STATUSES.includes(status)) return res.status(400).json({ error: "Étape de livraison invalide." });
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const requiresVerifiedPayment = STATUSES.indexOf(status) >= STATUSES.indexOf("colis_en_commande");
+    const query = { id: `eq.${req.params.id}`, select: "id" };
+    if (requiresVerifiedPayment) query.payment_status = "eq.verified";
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
-      query: { id: `eq.${req.params.id}`, select: "id" },
+      query,
       body: { status, updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
+    if (!updated.length && requiresVerifiedPayment) {
+      return res.status(409).json({ error: "Confirmez le paiement avant de démarrer la commande fournisseur." });
+    }
     if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
     res.json({ ok: true });
   } catch (error) {
