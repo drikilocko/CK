@@ -577,6 +577,37 @@ function renderOrder(order, isAdmin) {
   </article>`;
 }
 
+function showOrderConfirmation(order) {
+  const destination = order.destination === "benin" ? "Bénin" : "Togo";
+  const products = order.items.map((item) => `
+    <div class="confirmation-product">
+      <img src="${escapeHtml(item.image)}" alt="">
+      <div><strong>${escapeHtml(item.name)}</strong><span>${item.priceEur ? `${formatNumber(item.priceEur)} € (indicatif)` : "Prix à confirmer"}</span></div>
+    </div>`).join("");
+  $("#confirmation-reference").textContent = order.reference;
+  $("#confirmation-summary").innerHTML = `
+    <h2>Récapitulatif du colis</h2>
+    <div class="confirmation-products">${products}</div>
+    <div class="confirmation-delivery">
+      <strong>Livraison au ${destination}</strong>
+      <span>${escapeHtml(order.customerName)} · ${escapeHtml(order.phone)}</span>
+      <span>${escapeHtml(order.location)}</span>
+      ${order.notes ? `<span>Précisions : ${escapeHtml(order.notes)}</span>` : ""}
+    </div>`;
+  const whatsappNumber = order.destination === "benin" ? "22997158484" : "22890290081";
+  const message = [
+    `Bonjour, voici la référence de mon colis : ${order.reference}.`,
+    `Destinataire : ${order.customerName}.`,
+    `Produits : ${order.items.map((item) => item.name).join(", ")}.`,
+    `Livraison au ${destination} : ${order.location}.`
+  ].join("\n");
+  $("#send-order-whatsapp").href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  document.querySelectorAll(".customer-page").forEach((section) => { section.hidden = true; });
+  $("#customer-nav").hidden = true;
+  $("#customer-page-confirmation").hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 async function loadOrders() {
   if (!currentUser) return;
   try {
@@ -593,6 +624,8 @@ async function loadOrders() {
 
 function showCustomerPage(page, updateHash = true) {
   if (!Object.hasOwn(customerPageHashes, page)) page = "order";
+  $("#customer-nav").hidden = false;
+  $("#customer-page-confirmation").hidden = true;
   document.querySelectorAll(".customer-page").forEach((section) => {
     section.hidden = section.id !== `customer-page-${page}`;
   });
@@ -753,8 +786,6 @@ $("#order-form").addEventListener("submit", async (event) => {
       items
     };
     const { order } = await api("/api/orders", { method: "POST", body: JSON.stringify(values) });
-    const whatsappNumber = order.destination === "benin" ? "22997158484" : "22890290081";
-    const text = `Bonjour, je viens d'envoyer une demande de devis pour mon colis ${order.reference}.`;
     [...$("#product-list").querySelectorAll(".image-preview")].forEach((image) => {
       if (image.src.startsWith("blob:")) URL.revokeObjectURL(image.src);
     });
@@ -769,8 +800,7 @@ $("#order-form").addEventListener("submit", async (event) => {
     addProductRow();
     setCheckoutStep(1);
     await loadOrders();
-    showCustomerPage("orders");
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    showOrderConfirmation(order);
   } catch (error) {
     message.textContent = error.message;
   } finally {

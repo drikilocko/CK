@@ -71,7 +71,28 @@ async function supabaseRequest(table, { method = "GET", query, body, prefer } = 
   return data;
 }
 
-async function uploadProductImage(filename, mimeType, image) {
+async function createProductImageBucket() {
+  const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      id: "ck-product-images",
+      name: "ck-product-images",
+      public: true,
+      file_size_limit: 4194304,
+      allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
+    })
+  });
+  if (response.ok || response.status === 409) return;
+  const data = await response.json().catch(() => ({}));
+  throw new Error(data.message || `Impossible de créer le bucket ck-product-images (${response.status}).`);
+}
+
+async function uploadProductImage(filename, mimeType, image, createBucketOnMissing = true) {
   const response = await fetch(
     `${supabaseUrl}/storage/v1/object/ck-product-images/${encodeURIComponent(filename)}`,
     {
@@ -87,6 +108,14 @@ async function uploadProductImage(filename, mimeType, image) {
   );
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
+    if (createBucketOnMissing && response.status === 404 && /bucket not found/i.test(data.message || "")) {
+      try {
+        await createProductImageBucket();
+      } catch (error) {
+        throw new Error(`Le bucket d'images Supabase est introuvable et n'a pas pu être créé. Exécutez supabase-schema.sql dans Supabase > SQL Editor. Détail : ${error.message}`);
+      }
+      return uploadProductImage(filename, mimeType, image, false);
+    }
     throw new Error(data.message || `Impossible d'enregistrer l'image dans Supabase Storage (${response.status}).`);
   }
   return `${supabaseUrl}/storage/v1/object/public/ck-product-images/${encodeURIComponent(filename)}`;
@@ -447,6 +476,7 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
         phone: phone.trim(),
         destination,
         location: location.trim(),
+        notes: typeof notes === "string" ? notes.trim().slice(0, 1000) : "",
         items: cleanItems,
         subtotalEur: subtotal,
         shippingFcfa: null,

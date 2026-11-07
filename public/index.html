@@ -47,6 +47,22 @@
           <button class="nav-link" type="button" data-page-link="orders">Mes commandes</button>
         </nav>
 
+        <section id="customer-page-confirmation" class="confirmation-page" aria-live="polite" hidden>
+          <div class="confirmation-card">
+            <span class="confirmation-icon" aria-hidden="true">✓</span>
+            <p class="eyebrow">DEMANDE ENREGISTRÉE</p>
+            <h1>Votre colis est bien enregistré</h1>
+            <p class="confirmation-copy">Retrouvez le récapitulatif de votre demande ci-dessous, puis envoyez sa référence sur WhatsApp.</p>
+            <div class="confirmation-reference"><span>Référence de votre colis</span><strong id="confirmation-reference"></strong></div>
+            <div id="confirmation-summary" class="confirmation-summary"></div>
+            <a id="send-order-whatsapp" class="button button-primary full confirmation-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Envoyer la référence par WhatsApp</a>
+            <div class="confirmation-actions">
+              <button class="button button-outline" type="button" data-page-link="orders">Voir mes commandes</button>
+              <button class="button button-outline" type="button" data-page-link="order">Créer une autre commande</button>
+            </div>
+          </div>
+        </section>
+
         <section id="customer-page-home" class="customer-page">
           <div class="home-hero">
             <p class="eyebrow">ESPACE CLIENT · BÉNIN & TOGO</p>

@@ -10,7 +10,7 @@ Application JavaScript avec serveur Node.js pour enregistrer des commandes, calc
 4. Dans un terminal, exécutez `npm install`, puis `npm start`.
 5. Ouvrez `http://localhost:3000`. Connectez-vous avec les identifiants administrateur définis dans `.env`.
 
-Les comptes, sessions, commandes et photos de produits sont stockés dans Supabase. Le schéma crée également le bucket public `ck-product-images` (seul le serveur utilise la clé secrète pour y téléverser). Les anciennes données de `data/orders.sqlite` et les images du dossier local `uploads/` ne sont pas migrées automatiquement.
+Les comptes, sessions, commandes et photos de produits sont stockés dans Supabase. Le schéma crée le bucket public `ck-product-images` ; si celui-ci manque, le serveur tente de le créer au premier téléversement (seul le serveur utilise la clé secrète). Les anciennes données de `data/orders.sqlite` et les images du dossier local `uploads/` ne sont pas migrées automatiquement.
 
 ## Fonctionnement
 
@@ -21,7 +21,7 @@ Les comptes, sessions, commandes et photos de produits sont stockés dans Supaba
 - L'adresse se choisit sur une carte plein écran MapLibre GL utilisant le style Positron d'OpenFreeMap. L'utilisateur peut se géolocaliser, déplacer le repère ou coller un lien Google Maps, Apple Plans ou OpenStreetMap ; un lien contenant des coordonnées recentre automatiquement la carte. Les données cartographiques viennent d'OpenFreeMap/OpenStreetMap et la recherche d'adresse de Nominatim.
 - L'image peut être téléversée (JPG, PNG, WEBP, 4 Mo maximum) ou fournie par URL.
 - La commande se remplit en trois étapes : produits, adresse de livraison, puis vérification du récapitulatif. Le lien « Rechercher ce produit sur Google » ouvre une recherche Google ciblant les articles Alibaba ; le prix fourni par le client est facultatif et indicatif.
-- À l'envoi, une fenêtre explique que le montant fourni ne vaut pas devis. La demande est enregistrée et WhatsApp s'ouvre avec sa référence. Bénin : +229 97 15 84 84 ; Togo : +228 90 29 00 81.
+- À l'envoi, une fenêtre explique que le montant fourni ne vaut pas devis. Après l'enregistrement, une page de confirmation affiche le récapitulatif du colis et un bouton prépare le message WhatsApp avec sa référence. Bénin : +229 97 15 84 84 ; Togo : +228 90 29 00 81.
 - Depuis `/admin`, l'administrateur indique le devis final en FCFA et l'enregistre pour ouvrir WhatsApp avec un message prérempli au client. Après vérification manuelle du paiement, il passe le statut à « Votre colis est en commande », puis à « Commandée auprès du fournisseur » une fois l'achat réellement passé. Les autres étapes sont « Dans l'avion », « Arrivé au pays » et « Livré ».
 - Les clients voient le devis et les changements de statut avec une actualisation automatique toutes les 20 secondes. Le site ne traite pas directement les paiements.
 
