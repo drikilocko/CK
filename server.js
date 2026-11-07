@@ -5,7 +5,6 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 
 const ROOT = __dirname;
-const UPLOAD_DIR = path.join(ROOT, "uploads");
 const STATUSES = [
   "demande_recue",
   "devis_envoye",
@@ -30,13 +29,13 @@ function loadLocalEnv() {
 loadLocalEnv();
 const PORT = Number(process.env.PORT || 3000);
 const secureCookie = process.env.NODE_ENV === "production" ? "; Secure" : "";
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const supabaseUrl = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
 const supabaseKey = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
 const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
 const recognitionUsage = new Map();
+let initialization;
 
 function supabaseQuery(table, query = {}) {
   const url = new URL(`${supabaseUrl}/rest/v1/${table}`);
@@ -70,6 +69,27 @@ async function supabaseRequest(table, { method = "GET", query, body, prefer } = 
     throw error;
   }
   return data;
+}
+
+async function uploadProductImage(filename, mimeType, image) {
+  const response = await fetch(
+    `${supabaseUrl}/storage/v1/object/ck-product-images/${encodeURIComponent(filename)}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": mimeType,
+        "x-upsert": "false"
+      },
+      body: image
+    }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || `Impossible d'enregistrer l'image dans Supabase Storage (${response.status}).`);
+  }
+  return `${supabaseUrl}/storage/v1/object/public/ck-product-images/${encodeURIComponent(filename)}`;
 }
 
 async function verifySupabaseConfig() {
@@ -115,6 +135,15 @@ async function checkSupabaseTables() {
   }
 }
 
+function initializeServer() {
+  if (!initialization) {
+    initialization = verifySupabaseConfig()
+      .then(checkSupabaseTables)
+      .then(ensureAdmin);
+  }
+  return initialization;
+}
+
 async function ensureAdmin() {
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
@@ -146,7 +175,9 @@ async function ensureAdmin() {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8mb" }));
-app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "1d" }));
+app.use((req, res, next) => {
+  initializeServer().then(() => next()).catch(next);
+});
 app.use("/leaflet", express.static(path.join(ROOT, "node_modules", "leaflet", "dist")));
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(ROOT, "public", "index.html"));
@@ -202,7 +233,7 @@ async function makeSession(userId, res) {
   res.setHeader("Set-Cookie", `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${secureCookie}`);
 }
 
-function validateImage(item) {
+async function validateImage(item) {
   if (typeof item.imageUrl === "string" && item.imageUrl.trim()) {
     let url;
     try {
@@ -226,8 +257,7 @@ function validateImage(item) {
   }
   const extension = match[1] === "jpeg" ? "jpg" : match[1];
   const filename = `${crypto.randomUUID()}.${extension}`;
-  fs.writeFileSync(path.join(UPLOAD_DIR, filename), image, { flag: "wx" });
-  return `/uploads/${filename}`;
+  return uploadProductImage(filename, `image/${match[1]}`, image);
 }
 
 app.post("/api/signup", async (req, res, next) => {
@@ -378,7 +408,7 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "Un panier doit contenir entre 1 et 20 produits." });
     }
     let subtotal = 0;
-    const cleanItems = items.map((item) => {
+    const cleanItems = await Promise.all(items.map(async (item) => {
       const name = typeof item.name === "string" ? item.name.trim() : "";
       const priceEur = item.priceEur === "" || item.priceEur === null || item.priceEur === undefined
         ? null
@@ -387,10 +417,10 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
         || (priceEur !== null && (!Number.isFinite(priceEur) || priceEur <= 0 || priceEur > 1000000))) {
         throw new Error("Chaque produit doit avoir un nom et, si indiqué, un prix en euros valide.");
       }
-      const image = validateImage(item);
+      const image = await validateImage(item);
       if (priceEur !== null) subtotal += priceEur;
       return { name, priceEur, image };
-    });
+    }));
     subtotal = Math.round(subtotal * 100) / 100;
     const [savedOrder] = await supabaseRequest("ck_orders", {
       method: "POST",
@@ -526,11 +556,15 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ error: "Une erreur interne est survenue." });
 });
 
-verifySupabaseConfig().then(checkSupabaseTables).then(ensureAdmin).then(() => {
+if (require.main === module) {
+  initializeServer().then(() => {
   app.listen(PORT, () => {
     console.log(`Site disponible sur http://localhost:${PORT}`);
   });
-}).catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+  }).catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = app;

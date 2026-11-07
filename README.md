@@ -10,7 +10,7 @@ Application JavaScript avec serveur Node.js pour enregistrer des commandes, calc
 4. Dans un terminal, exécutez `npm install`, puis `npm start`.
 5. Ouvrez `http://localhost:3000`. Connectez-vous avec les identifiants administrateur définis dans `.env`.
 
-Les comptes, sessions et commandes sont stockés dans les tables CK de Supabase. Les images téléversées restent dans le dossier local `uploads/`. Les anciennes données de `data/orders.sqlite` ne sont pas migrées automatiquement.
+Les comptes, sessions, commandes et photos de produits sont stockés dans Supabase. Le schéma crée également le bucket public `ck-product-images` (seul le serveur utilise la clé secrète pour y téléverser). Les anciennes données de `data/orders.sqlite` et les images du dossier local `uploads/` ne sont pas migrées automatiquement.
 
 ## Fonctionnement
 
@@ -38,4 +38,4 @@ Le client ne voit pas de total automatique : le montant définitif lui est commu
 
 ## Mise en ligne
 
-Configurez l'application derrière HTTPS avant de la rendre accessible sur Internet. La clé Secret Supabase doit rester uniquement dans les variables du serveur ; ne la placez jamais dans le navigateur ni dans le dépôt. Sauvegardez la base Supabase et le dossier `uploads/`.
+Configurez l'application derrière HTTPS avant de la rendre accessible sur Internet. La clé Secret Supabase doit rester uniquement dans les variables du serveur ; ne la placez jamais dans le navigateur ni dans le dépôt. Sauvegardez la base Supabase et le bucket `ck-product-images`.

@@ -63,3 +63,16 @@ alter table public.ck_orders enable row level security;
 revoke all on table public.ck_users, public.ck_sessions, public.ck_orders from anon, authenticated;
 grant select, insert, update, delete on table public.ck_users, public.ck_sessions, public.ck_orders to service_role;
 grant usage, select on sequence public.ck_users_id_seq, public.ck_orders_id_seq to service_role;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'ck-product-images',
+  'ck-product-images',
+  true,
+  4194304,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
