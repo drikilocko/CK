@@ -27,8 +27,8 @@ create table if not exists public.ck_orders (
   total_fcfa bigint not null,
   status text not null default 'demande_recue'
     check (status in (
-      'demande_recue', 'devis_envoye', 'colis_en_commande',
-      'commande_fournisseur', 'dans_avion', 'arrive', 'livre'
+      'demande_recue', 'devis_envoye', 'commande_fournisseur',
+      'recu_france', 'en_transit', 'arrive', 'livre'
     )),
   quote_total_fcfa bigint,
   quote_sent_at timestamptz,
@@ -43,6 +43,30 @@ alter table public.ck_orders
   add column if not exists payment_reference text,
   add column if not exists payment_proof_path text,
   add column if not exists payment_verified_at timestamptz;
+
+-- Parcours en 3 étapes : liens → panier + commission payé par MoMo → expédition depuis la France.
+alter table public.ck_orders
+  add column if not exists shipping_mode text not null default 'avion',
+  add column if not exists articles_eur numeric(12, 2),
+  add column if not exists commission_eur numeric(12, 2),
+  add column if not exists shipping_weight_kg numeric(8, 2),
+  add column if not exists shipping_eur numeric(12, 2),
+  add column if not exists shipping_paid boolean not null default false;
+
+alter table public.ck_orders drop constraint if exists ck_orders_shipping_mode_check;
+alter table public.ck_orders add constraint ck_orders_shipping_mode_check
+  check (shipping_mode in ('avion', 'bateau'));
+
+-- Migration des anciens statuts vers le nouveau parcours.
+alter table public.ck_orders drop constraint if exists ck_orders_status_check;
+update public.ck_orders set status = 'commande_fournisseur' where status = 'colis_en_commande';
+update public.ck_orders set status = 'en_transit', shipping_paid = true where status = 'dans_avion';
+update public.ck_orders set shipping_paid = true where status in ('arrive', 'livre');
+alter table public.ck_orders add constraint ck_orders_status_check
+  check (status in (
+    'demande_recue', 'devis_envoye', 'commande_fournisseur',
+    'recu_france', 'en_transit', 'arrive', 'livre'
+  ));
 
 create index if not exists idx_ck_sessions_expiry on public.ck_sessions(expires_at);
 create index if not exists idx_ck_orders_user_id on public.ck_orders(user_id);

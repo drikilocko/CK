@@ -8,13 +8,26 @@ const ROOT = __dirname;
 const STATUSES = [
   "demande_recue",
   "devis_envoye",
-  "colis_en_commande",
   "commande_fournisseur",
-  "dans_avion",
+  "recu_france",
+  "en_transit",
   "arrive",
   "livre"
 ];
+const SHIPPING_MODES = ["avion", "bateau"];
 const PAYMENT_METHODS = ["Mobile Money", "Virement bancaire", "Autre"];
+
+// Règles tarifaires : commission de 10 % (10 € fixes sous 100 €, 7 % au-delà de 5 000 €),
+// expédition par avion à 15 €/kg, conversion à 666 FCFA pour 1 €.
+const EUR_TO_FCFA = 666;
+const AIR_RATE_EUR_PER_KG = 15;
+const roundCents = (amount) => Math.round(amount * 100) / 100;
+function commissionFor(articlesEur) {
+  if (articlesEur < 100) return 10;
+  if (articlesEur > 5000) return roundCents(articlesEur * 0.07);
+  return roundCents(articlesEur * 0.1);
+}
+const toFcfa = (amountEur) => Math.round(amountEur * EUR_TO_FCFA);
 const PAYMENT_PROOF_TYPES = new Map([
   ["image/jpeg", { extension: "jpg", matches: (image) => image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff }],
   ["image/png", { extension: "png", matches: (image) => image.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
@@ -210,6 +223,7 @@ async function checkSupabaseTables() {
     await supabaseRequest("ck_orders", { query: { select: "id", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "quote_total_fcfa,quote_sent_at", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "payment_status,payment_method,payment_reference,payment_proof_path,payment_verified_at", limit: 0 } });
+    await supabaseRequest("ck_orders", { query: { select: "shipping_mode,articles_eur,commission_eur,shipping_weight_kg,shipping_eur,shipping_paid", limit: 0 } });
   } catch (error) {
     if (["42P01", "PGRST205"].includes(error.code)) {
       throw new Error("Tables CK manquantes dans Supabase. Exécutez supabase-schema.sql dans Supabase > SQL Editor.");
@@ -319,8 +333,25 @@ async function makeSession(userId, res) {
   res.setHeader("Set-Cookie", `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${secureCookie}`);
 }
 
+function validateLink(value) {
+  const link = typeof value === "string" ? value.trim() : "";
+  let url;
+  try {
+    url = new URL(link);
+  } catch {
+    throw new Error("Collez un lien valide pour chaque article ou panier (https://…).");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || link.length > 2000) {
+    throw new Error("Chaque lien doit commencer par https:// et faire moins de 2000 caractères.");
+  }
+  return url.toString();
+}
+
 async function validateImage(item) {
-  if (typeof item.imageUrl === "string" && item.imageUrl.trim()) {
+  const hasUrl = typeof item.imageUrl === "string" && item.imageUrl.trim();
+  const hasData = typeof item.imageData === "string" && item.imageData;
+  if (!hasUrl && !hasData) return "";
+  if (hasUrl) {
     let url;
     try {
       url = new URL(item.imageUrl);
@@ -331,9 +362,6 @@ async function validateImage(item) {
       throw new Error("L'image doit utiliser une adresse HTTP ou HTTPS.");
     }
     return url.toString();
-  }
-  if (typeof item.imageData !== "string") {
-    throw new Error("Ajoutez une image ou un lien vers l'image de chaque produit.");
   }
   const match = item.imageData.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error("Format d'image invalide. Utilisez JPG, PNG ou WEBP.");
@@ -477,7 +505,10 @@ app.post("/api/recognize-product", requireAuth, async (req, res, next) => {
 
 app.post("/api/orders", requireAuth, async (req, res, next) => {
   try {
-    const { customerName, phone, destination, location, notes, items } = req.body;
+    const { customerName, phone, destination, location, notes, items, shippingMode } = req.body;
+    if (!SHIPPING_MODES.includes(shippingMode)) {
+      return res.status(400).json({ error: "Choisissez l'expédition par avion ou par bateau." });
+    }
     if (typeof customerName !== "string" || !customerName.trim() || customerName.trim().length > 100) {
       return res.status(400).json({ error: "Indiquez le nom complet du destinataire." });
     }
@@ -491,21 +522,23 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "Indiquez la ville et l'adresse de livraison." });
     }
     if (!Array.isArray(items) || items.length < 1 || items.length > 20) {
-      return res.status(400).json({ error: "Un panier doit contenir entre 1 et 20 produits." });
+      return res.status(400).json({ error: "Une commande doit contenir entre 1 et 20 liens." });
     }
     let subtotal = 0;
-    const cleanItems = await Promise.all(items.map(async (item) => {
-      const name = typeof item.name === "string" ? item.name.trim() : "";
+    const cleanItems = await Promise.all(items.map(async (item, index) => {
+      const link = validateLink(item.link);
+      const name = (typeof item.name === "string" ? item.name.trim() : "") || `Article ${index + 1}`;
+      const quantity = Number(item.quantity ?? 1);
       const priceEur = item.priceEur === "" || item.priceEur === null || item.priceEur === undefined
         ? null
         : Number(item.priceEur);
-      if (!name || name.length > 120
+      if (name.length > 120 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99
         || (priceEur !== null && (!Number.isFinite(priceEur) || priceEur <= 0 || priceEur > 1000000))) {
-        throw new Error("Chaque produit doit avoir un nom et, si indiqué, un prix en euros valide.");
+        throw new Error("Vérifiez le nom, la quantité (1 à 99) et le prix indicatif de chaque article.");
       }
       const image = await validateImage(item);
-      if (priceEur !== null) subtotal += priceEur;
-      return { name, priceEur, image };
+      if (priceEur !== null) subtotal += priceEur * quantity;
+      return { name, link, quantity, priceEur, image };
     }));
     subtotal = Math.round(subtotal * 100) / 100;
     const [savedOrder] = await supabaseRequest("ck_orders", {
@@ -522,6 +555,7 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
         subtotal_eur: subtotal,
         shipping_fcfa: 0,
         total_fcfa: 0,
+        shipping_mode: shippingMode,
         status: "demande_recue"
       }
     });
@@ -539,6 +573,7 @@ app.post("/api/orders", requireAuth, async (req, res, next) => {
         shippingFcfa: null,
         totalFcfa: null,
         quoteTotalFcfa: null,
+        shippingMode,
         status: "demande_recue"
       }
     });
@@ -567,6 +602,12 @@ function mapOrder(row) {
     paymentMethod: row.payment_method,
     paymentReference: row.payment_reference,
     hasPaymentProof: Boolean(row.payment_proof_path),
+    shippingMode: row.shipping_mode || "avion",
+    articlesEur: row.articles_eur === null || row.articles_eur === undefined ? null : Number(row.articles_eur),
+    commissionEur: row.commission_eur === null || row.commission_eur === undefined ? null : Number(row.commission_eur),
+    shippingWeightKg: row.shipping_weight_kg === null || row.shipping_weight_kg === undefined ? null : Number(row.shipping_weight_kg),
+    shippingEur: row.shipping_eur === null || row.shipping_eur === undefined ? null : Number(row.shipping_eur),
+    shippingPaid: Boolean(row.shipping_paid),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -597,10 +638,12 @@ app.get("/api/orders", requireAuth, async (req, res, next) => {
 app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, next) => {
   try {
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
-    const quoteTotalFcfa = Number(req.body.quoteTotalFcfa);
-    if (!Number.isSafeInteger(quoteTotalFcfa) || quoteTotalFcfa < 1 || quoteTotalFcfa > 1000000000) {
-      return res.status(400).json({ error: "Indiquez le montant du devis en FCFA (de 1 à 1 000 000 000)." });
+    const articlesEur = roundCents(Number(req.body.articlesEur));
+    if (!Number.isFinite(articlesEur) || articlesEur <= 0 || articlesEur > 1000000) {
+      return res.status(400).json({ error: "Indiquez le montant exact des articles en euros (de 0,01 à 1 000 000 €)." });
     }
+    const commissionEur = commissionFor(articlesEur);
+    const quoteTotalFcfa = toFcfa(articlesEur + commissionEur);
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
       query: {
@@ -610,6 +653,8 @@ app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, n
         select: "id"
       },
       body: {
+        articles_eur: articlesEur,
+        commission_eur: commissionEur,
         quote_total_fcfa: quoteTotalFcfa,
         status: "devis_envoye",
         payment_status: "awaiting_proof",
@@ -619,6 +664,64 @@ app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, n
       prefer: "return=representation"
     });
     if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
+    res.json({ ok: true, articlesEur, commissionEur, quoteTotalFcfa });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/orders/:id/shipping", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "id,status,payment_status,shipping_mode,shipping_paid", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    if (!order) return res.status(404).json({ error: "Commande introuvable." });
+    if (order.status !== "recu_france" || order.payment_status !== "verified" || order.shipping_paid) {
+      return res.status(409).json({ error: "Les frais d'expédition se calculent quand le colis est reçu en France et avant leur paiement." });
+    }
+    const weightKg = req.body.weightKg === "" || req.body.weightKg === null || req.body.weightKg === undefined
+      ? null
+      : Math.round(Number(req.body.weightKg) * 100) / 100;
+    if (weightKg !== null && (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 5000)) {
+      return res.status(400).json({ error: "Indiquez un poids valide en kilogrammes." });
+    }
+    let shippingEur;
+    if (order.shipping_mode === "bateau") {
+      shippingEur = roundCents(Number(req.body.shippingEur));
+      if (!Number.isFinite(shippingEur) || shippingEur <= 0 || shippingEur > 1000000) {
+        return res.status(400).json({ error: "Indiquez le tarif d'expédition par bateau en euros." });
+      }
+    } else {
+      if (weightKg === null) return res.status(400).json({ error: "Indiquez le poids du colis pour calculer l'expédition par avion." });
+      shippingEur = roundCents(weightKg * AIR_RATE_EUR_PER_KG);
+    }
+    await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${order.id}` },
+      body: {
+        shipping_weight_kg: weightKg,
+        shipping_eur: shippingEur,
+        shipping_fcfa: toFcfa(shippingEur),
+        updated_at: new Date().toISOString()
+      }
+    });
+    res.json({ ok: true, weightKg, shippingEur, shippingFcfa: toFcfa(shippingEur) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/orders/:id/shipping-paid", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const updated = await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${req.params.id}`, shipping_eur: "not.is.null", select: "id" },
+      body: { shipping_paid: true, updated_at: new Date().toISOString() },
+      prefer: "return=representation"
+    });
+    if (!updated.length) return res.status(409).json({ error: "Enregistrez d'abord les frais d'expédition." });
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -735,17 +838,22 @@ app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, 
     const status = req.body.status;
     if (!STATUSES.includes(status)) return res.status(400).json({ error: "Étape de livraison invalide." });
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
-    const requiresVerifiedPayment = STATUSES.indexOf(status) >= STATUSES.indexOf("colis_en_commande");
+    const requiresVerifiedPayment = STATUSES.indexOf(status) >= STATUSES.indexOf("commande_fournisseur");
+    const requiresShippingPaid = STATUSES.indexOf(status) >= STATUSES.indexOf("en_transit");
     const query = { id: `eq.${req.params.id}`, select: "id" };
     if (requiresVerifiedPayment) query.payment_status = "eq.verified";
+    if (requiresShippingPaid) query.shipping_paid = "is.true";
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
       query,
       body: { status, updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
+    if (!updated.length && requiresShippingPaid) {
+      return res.status(409).json({ error: "Le paiement du panier et des frais d'expédition doit être confirmé avant l'expédition." });
+    }
     if (!updated.length && requiresVerifiedPayment) {
-      return res.status(409).json({ error: "Confirmez le paiement avant de démarrer la commande fournisseur." });
+      return res.status(409).json({ error: "Confirmez le paiement MoMo avant de commander auprès du vendeur." });
     }
     if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
     res.json({ ok: true });

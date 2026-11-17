@@ -1,23 +1,38 @@
 import * as maplibregl from "maplibre-gl";
 
 const statusNames = {
-  demande_recue: "Demande reçue · devis à préparer",
-  devis_envoye: "Devis envoyé · attente de paiement",
-  colis_en_commande: "Votre colis est en commande",
-  commande_fournisseur: "Commandée auprès du fournisseur",
-  dans_avion: "Dans l'avion",
+  demande_recue: "Liens reçus · panier en préparation",
+  devis_envoye: "Panier envoyé · paiement MoMo attendu",
+  commande_fournisseur: "Commandé auprès du vendeur",
+  recu_france: "Reçu à notre adresse en France",
+  en_transit: "En route vers vous",
   arrive: "Arrivé au pays",
   livre: "Livré"
 };
 const statusOrder = [
   "demande_recue",
   "devis_envoye",
-  "colis_en_commande",
   "commande_fournisseur",
-  "dans_avion",
+  "recu_france",
+  "en_transit",
   "arrive",
   "livre"
 ];
+
+// Règles tarifaires (identiques à celles du serveur).
+const EUR_TO_FCFA = 666;
+const AIR_RATE_EUR_PER_KG = 15;
+const roundCents = (amount) => Math.round(amount * 100) / 100;
+function commissionFor(articlesEur) {
+  if (articlesEur < 100) return 10;
+  if (articlesEur > 5000) return roundCents(articlesEur * 0.07);
+  return roundCents(articlesEur * 0.1);
+}
+const toFcfa = (amountEur) => Math.round(amountEur * EUR_TO_FCFA);
+const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+const formatEur = (amount) => eurFormatter.format(amount);
+const formatFcfa = (amount) => `${new Intl.NumberFormat("fr-FR").format(Math.round(amount))} FCFA`;
+const shippingModeNames = { avion: "Avion", bateau: "Bateau" };
 const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 let signupMode = false;
@@ -98,25 +113,31 @@ function addProductRow() {
   const row = document.createElement("div");
   row.className = "product-row";
   row.innerHTML = `
-    <div class="product-card-header"><strong>Produit <span class="product-number"></span></strong>
-      <button class="remove-product" type="button" aria-label="Supprimer ce produit">×</button>
+    <div class="product-card-header"><strong>Lien <span class="product-number"></span></strong>
+      <button class="remove-product" type="button" aria-label="Supprimer ce lien">×</button>
     </div>
-    <button class="image-picker" type="button" aria-label="Ajouter une image au produit">
-      <img class="image-preview" alt="Aperçu du produit" hidden>
-      <span class="image-placeholder"><span class="plus-icon">＋</span><span>Ajouter une image</span></span>
-    </button>
-    <input class="product-image-file" type="file" accept="image/jpeg,image/png,image/webp">
-    <div class="ai-recognition" aria-live="polite">
-      <span class="ai-status">L'identification par photo démarre automatiquement.</span>
-      <button class="apply-ai-suggestion" type="button" hidden>Utiliser la suggestion</button>
+    <label>Lien de l'article ou du panier<input class="product-link" type="url" required maxlength="2000" inputmode="url" placeholder="https://…"></label>
+    <label>Description (facultatif)<input class="product-name" maxlength="120" placeholder="Ex. Baskets taille 42, couleur noire"></label>
+    <div class="product-inline">
+      <label>Quantité<input class="product-quantity" type="number" min="1" max="99" step="1" value="1" required></label>
+      <label>Prix unitaire €<input class="product-price" type="number" min="0.01" max="1000000" step="0.01" placeholder="Facultatif"></label>
     </div>
-    <label>Nom du produit<input class="product-name" required maxlength="120" placeholder="Nom du produit"></label>
-    <label>Prix indicatif en euros (facultatif)<input class="product-price" type="number" min="0.01" max="1000000" step="0.01" placeholder="Non obligatoire"></label>
-    <div class="image-control">
-      <input class="image-url" type="url" placeholder="Ou collez le lien de l'image">
-      <span class="image-error" aria-live="polite"></span>
-    </div>
-    <a class="product-search" href="https://www.google.com/search?q=site%3Aalibaba.com" target="_blank" rel="noopener noreferrer">Rechercher ce produit sur Google ↗</a>`;
+    <details class="product-photo">
+      <summary>Ajouter une photo (facultatif)</summary>
+      <button class="image-picker" type="button" aria-label="Ajouter une photo de l'article">
+        <img class="image-preview" alt="Aperçu de l'article" hidden>
+        <span class="image-placeholder"><span class="plus-icon">＋</span><span>Choisir une photo</span></span>
+      </button>
+      <input class="product-image-file" type="file" accept="image/jpeg,image/png,image/webp">
+      <div class="ai-recognition" aria-live="polite">
+        <span class="ai-status">Une description sera proposée à partir de la photo.</span>
+        <button class="apply-ai-suggestion" type="button" hidden>Utiliser la suggestion</button>
+      </div>
+      <div class="image-control">
+        <input class="image-url" type="url" placeholder="Ou collez le lien de l'image">
+        <span class="image-error" aria-live="polite"></span>
+      </div>
+    </details>`;
   const updateNumber = () => {
     [...$("#product-list").children].forEach((product, index) => {
       product.querySelector(".product-number").textContent = String(index + 1).padStart(2, "0");
@@ -136,7 +157,6 @@ function addProductRow() {
   const imagePicker = row.querySelector(".image-picker");
   const imageUrl = row.querySelector(".image-url");
   const imageError = row.querySelector(".image-error");
-  const searchLink = row.querySelector(".product-search");
   const aiStatus = row.querySelector(".ai-status");
   const applySuggestion = row.querySelector(".apply-ai-suggestion");
   const nameInput = row.querySelector(".product-name");
@@ -161,7 +181,7 @@ function addProductRow() {
         recognizeProductImage(file, row);
       }
     } else {
-      aiStatus.textContent = "L'identification par photo démarre automatiquement.";
+      aiStatus.textContent = "Une description sera proposée à partir de la photo.";
       imageUrl.dispatchEvent(new Event("input"));
     }
   });
@@ -186,10 +206,6 @@ function addProductRow() {
     };
     imagePreview.src = imageUrl.value.trim();
   });
-  nameInput.addEventListener("input", (event) => {
-    const query = `site:alibaba.com ${event.target.value.trim()}`;
-    searchLink.href = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-  });
   $("#product-list").append(row);
   updateNumber();
   refreshQuote();
@@ -205,7 +221,7 @@ function setCheckoutStep(step) {
     indicator.classList.toggle("active", number === step);
     indicator.classList.toggle("complete", number < step);
   });
-  $("#checkout-title").textContent = ["", "1. Vos produits", "2. Livraison", "3. Vérification"][step];
+  $("#checkout-title").textContent = ["", "1. Vos liens", "2. Expédition et livraison", "3. Vérification"][step];
   $("#previous-step").hidden = step === 1;
   $("#next-step").hidden = step === 3;
   $("#submit-order").hidden = step !== 3;
@@ -460,22 +476,27 @@ async function confirmDeliveryLocation() {
 function validateProducts() {
   const rows = [...$("#product-list").children];
   for (const row of rows) {
-    const name = row.querySelector(".product-name");
+    const link = row.querySelector(".product-link");
+    const quantity = row.querySelector(".product-quantity");
     const price = row.querySelector(".product-price");
-    if (!name.reportValidity()) return false;
+    if (!link.reportValidity()) return false;
+    if (!/^https?:\/\//i.test(link.value.trim())) {
+      link.setCustomValidity("Le lien doit commencer par https://");
+      link.reportValidity();
+      link.setCustomValidity("");
+      return false;
+    }
+    if (!row.querySelector(".product-name").reportValidity()) return false;
+    if (!quantity.reportValidity()) return false;
     if (price.value && !price.reportValidity()) return false;
     const file = row.querySelector(".product-image-file").files[0];
     const imageUrl = row.querySelector(".image-url");
     if (file && (file.size > 4 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(file.type))) {
-      $("#order-message").textContent = "Choisissez une image JPG, PNG ou WEBP de moins de 4 Mo.";
+      $("#order-message").textContent = "Choisissez une photo JPG, PNG ou WEBP de moins de 4 Mo.";
       return false;
     }
-    if (!file && !imageUrl.value.trim()) {
-      $("#order-message").textContent = "Ajoutez une image ou un lien d'image pour chaque produit.";
-      imageUrl.focus();
-      return false;
-    }
-    if (!file && !imageUrl.checkValidity()) {
+    if (!file && imageUrl.value.trim() && !imageUrl.checkValidity()) {
+      row.querySelector(".product-photo").open = true;
       imageUrl.reportValidity();
       return false;
     }
@@ -514,33 +535,30 @@ async function recognizeProductImage(file, row) {
 function updateCheckoutReview() {
   const form = new FormData($("#order-form"));
   const destination = form.get("destination") === "benin" ? "Bénin" : "Togo";
-  const items = [...$("#product-list").children].map((row) => {
-    return {
-      name: row.querySelector(".product-name").value,
-      price: row.querySelector(".product-price").value,
-      image: row.querySelector(".image-preview").src
-    };
-  });
+  const items = [...$("#product-list").children].map((row, index) => ({
+    name: row.querySelector(".product-name").value.trim() || `Article ${index + 1}`,
+    link: row.querySelector(".product-link").value.trim(),
+    quantity: Number(row.querySelector(".product-quantity").value) || 1,
+    price: row.querySelector(".product-price").value,
+    image: row.querySelector(".image-preview").hidden ? "" : row.querySelector(".image-preview").src
+  }));
   const products = items.map((item) => `
     <div class="review-product">
-      <img src="${escapeHtml(item.image)}" alt="">
-      <div><strong>${escapeHtml(item.name || "Produit")}</strong><span>${item.price ? `${escapeHtml(item.price)} € (indicatif)` : "Prix non indiqué"}</span></div>
+      ${itemThumb(item.image)}
+      <div><strong>${item.quantity} × ${escapeHtml(item.name)}</strong>
+        <span class="review-link">${escapeHtml(item.link)}</span>
+        <span>${item.price ? `${escapeHtml(formatEur(Number(item.price)))} l'unité (indicatif)` : "Prix à confirmer"}</span></div>
     </div>`).join("");
   const phone = form.get("phone") || "Non renseigné";
   const name = form.get("customerName") || "Non renseigné";
   const location = form.get("location") || "Non renseignée";
+  const mode = form.get("shippingMode") === "bateau" ? "Bateau · tarif selon les produits" : "Avion · 15 € par kilo";
   $("#checkout-review").innerHTML = `${products}
     <div class="review-delivery"><strong>Livraison au ${destination}</strong>
+      <span>Expédition : ${mode}</span>
       <span>${escapeHtml(name)} · ${escapeHtml(phone)}</span>
       <span>${escapeHtml(location)}</span>
     </div>`;
-  const prices = items.map((item) => Number(item.price)).filter((price) => Number.isFinite(price) && price > 0);
-  const indicativeTotal = prices.reduce((sum, price) => sum + price, 0);
-  $("#quote-products").textContent = prices.length
-    ? `${formatNumber(Math.round(indicativeTotal * 100) / 100)} € (indicatif)`
-    : "Non renseigné";
-  $("#quote-shipping").textContent = "Inclus au devis";
-  $("#quote-total").textContent = "Devis à venir";
   refreshQuote();
 }
 
@@ -557,127 +575,239 @@ function formatNumber(amount) {
   return new Intl.NumberFormat("fr-FR").format(amount);
 }
 
-function refreshQuote() {
-  if (!$("#product-list")) return;
-  const prices = [...$("#product-list").querySelectorAll(".product-price")]
-    .map((input) => Number(input.value))
-    .filter((price) => Number.isFinite(price) && price > 0);
-  const indicativeTotal = prices.reduce((sum, price) => sum + price, 0);
-  $("#quote-products").textContent = prices.length
-    ? `${formatNumber(Math.round(indicativeTotal * 100) / 100)} € (indicatif)`
-    : "Non renseigné";
-  $("#quote-shipping").textContent = "Inclus au devis";
-  $("#quote-total").textContent = "Devis à venir";
+function itemThumb(image) {
+  return image
+    ? `<img src="${escapeHtml(image)}" alt="">`
+    : '<span class="item-thumb" aria-hidden="true"><svg><use href="#i-box"/></svg></span>';
 }
 
-function statusOptions(current, paymentStatus) {
-  const paymentRequiredIndex = statusOrder.indexOf("colis_en_commande");
+// Estimation côté client à partir des prix saisis : seul le montant envoyé par l'admin fait foi.
+function refreshQuote() {
+  if (!$("#product-list")) return;
+  const rows = [...$("#product-list").children];
+  let articles = 0;
+  let pricedRows = 0;
+  for (const row of rows) {
+    const price = Number(row.querySelector(".product-price").value);
+    const quantity = Number(row.querySelector(".product-quantity").value) || 1;
+    if (Number.isFinite(price) && price > 0) {
+      articles += price * quantity;
+      pricedRows += 1;
+    }
+  }
+  articles = roundCents(articles);
+  const complete = pricedRows === rows.length;
+  const commission = pricedRows ? commissionFor(articles) : 0;
+  const total = roundCents(articles + commission);
+  const articlesText = pricedRows ? `${formatEur(articles)}${complete ? "" : " (partiel)"}` : "Non renseigné";
+  const commissionText = pricedRows ? formatEur(commission) : "—";
+  const totalText = pricedRows ? `${formatEur(total)} ≈ ${formatFcfa(toFcfa(total))}` : "Montant exact à venir";
+  $("#quote-products").textContent = articlesText;
+  $("#quote-shipping").textContent = commissionText;
+  $("#quote-total").textContent = totalText;
+  $("#estimate-articles").textContent = articlesText;
+  $("#estimate-commission").textContent = commissionText;
+  $("#estimate-total").textContent = pricedRows ? totalText : "Indiquez un prix pour estimer";
+}
+
+function statusOptions(order) {
   return statusOrder.map((status) => {
-    const disabled = paymentStatus !== "verified" && statusOrder.indexOf(status) >= paymentRequiredIndex;
-    return `<option value="${status}" ${status === current ? "selected" : ""} ${disabled ? "disabled" : ""}>${statusNames[status]}</option>`;
+    const index = statusOrder.indexOf(status);
+    const disabled = (order.paymentStatus !== "verified" && index >= statusOrder.indexOf("commande_fournisseur"))
+      || (!order.shippingPaid && index >= statusOrder.indexOf("en_transit"));
+    return `<option value="${status}" ${status === order.status ? "selected" : ""} ${disabled ? "disabled" : ""}>${statusNames[status]}</option>`;
   }).join("");
 }
 
-function renderOrder(order, isAdmin) {
-  const items = order.items.map((item) => `
-    <span class="item-chip"><img src="${escapeHtml(item.image)}" alt=""><span>${escapeHtml(item.name)}${item.priceEur ? ` · ${formatNumber(item.priceEur)} € indicatif` : ""}</span></span>
-  `).join("");
-  const date = new Date(`${order.createdAt.replace(" ", "T")}Z`).toLocaleDateString("fr-FR");
-  const adminInfo = isAdmin ? `
-    <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
-      Tél. ${escapeHtml(order.phone)} · ${escapeHtml(order.location)}${order.notes ? `<br>Note : ${escapeHtml(order.notes)}` : ""}
-    </div>` : `<div class="order-address">${escapeHtml(order.location)} · ${escapeHtml(order.phone)}</div>`;
-  const paymentProofForm = !isAdmin && order.quoteTotalFcfa && order.paymentStatus !== "verified" ? `
+function quoteBreakdown(order) {
+  if (order.articlesEur === null || order.articlesEur === undefined) return "";
+  const total = roundCents(order.articlesEur + order.commissionEur);
+  return `<div class="cost-block">
+    <strong>Étape 2 · Votre panier</strong>
+    <div class="cost-line"><span>Articles</span><b>${formatEur(order.articlesEur)}</b></div>
+    <div class="cost-line"><span>Commission</span><b>${formatEur(order.commissionEur)}</b></div>
+    <div class="cost-line cost-total"><span>Total à payer par MoMo</span><b>${formatEur(total)} · ${formatFcfa(order.quoteTotalFcfa)}</b></div>
+    <span class="cost-status">${paymentStatusNames[order.paymentStatus] || ""}</span>
+  </div>`;
+}
+
+function shippingBreakdown(order) {
+  if (order.shippingEur === null || order.shippingEur === undefined) return "";
+  const detail = order.shippingMode === "avion" && order.shippingWeightKg
+    ? `Avion · ${formatNumber(order.shippingWeightKg)} kg × ${AIR_RATE_EUR_PER_KG} €`
+    : `${shippingModeNames[order.shippingMode]}${order.shippingWeightKg ? ` · ${formatNumber(order.shippingWeightKg)} kg` : ""}`;
+  return `<div class="cost-block">
+    <strong>Étape 3 · Expédition depuis la France</strong>
+    <div class="cost-line"><span>${detail}</span><b>${formatEur(order.shippingEur)}</b></div>
+    <div class="cost-line cost-total"><span>À payer par MoMo</span><b>${formatFcfa(toFcfa(order.shippingEur))}</b></div>
+    <span class="cost-status">${order.shippingPaid ? "✓ Frais d'expédition réglés" : "À régler avant le départ du colis"}</span>
+  </div>`;
+}
+
+function whatsappNumberFor(destination) {
+  return destination === "benin" ? "22997158484" : "22890290081";
+}
+
+function renderItems(order) {
+  return order.items.map((item) => {
+    const quantity = item.quantity || 1;
+    const label = `${quantity > 1 ? `${quantity} × ` : ""}${escapeHtml(item.name)}${item.priceEur ? ` · ${escapeHtml(formatEur(item.priceEur))}` : ""}`;
+    const content = `${itemThumb(item.image)}<span>${label}</span>`;
+    return item.link
+      ? `<a class="item-chip" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${content}<span class="item-chip-arrow" aria-hidden="true">↗</span></a>`
+      : `<span class="item-chip">${content}</span>`;
+  }).join("");
+}
+
+function paymentProofFormFor(order) {
+  if (!order.quoteTotalFcfa || order.paymentStatus === "verified") return "";
+  return `
     <form class="payment-proof-form" data-order-id="${order.id}">
-      <strong>${paymentStatusNames[order.paymentStatus] || paymentStatusNames.awaiting_proof}</strong>
+      <strong>${order.paymentStatus === "proof_received" ? "Reçu envoyé · vérification en cours" : `Payez ${formatFcfa(order.quoteTotalFcfa)} par MoMo puis envoyez le reçu`}</strong>
       <label>Moyen de paiement
         <select name="paymentMethod" required>
-          <option value="">Choisir un moyen de paiement</option>
-          <option value="Mobile Money" ${order.paymentMethod === "Mobile Money" ? "selected" : ""}>Mobile Money</option>
-          <option value="Virement bancaire" ${order.paymentMethod === "Virement bancaire" ? "selected" : ""}>Virement bancaire</option>
-          <option value="Autre" ${order.paymentMethod === "Autre" ? "selected" : ""}>Autre</option>
+          ${["Mobile Money", "Virement bancaire", "Autre"].map((method) => `<option value="${method}" ${(order.paymentMethod || "Mobile Money") === method ? "selected" : ""}>${method === "Mobile Money" ? "Mobile Money (MoMo)" : method}</option>`).join("")}
         </select>
       </label>
       <label>Référence de transaction (facultatif)
-        <input name="paymentReference" maxlength="100" value="${escapeHtml(order.paymentReference || "")}" placeholder="Ex. numéro de transaction">
+        <input name="paymentReference" maxlength="100" value="${escapeHtml(order.paymentReference || "")}" placeholder="Ex. ID de la transaction MoMo">
       </label>
       <label>Reçu de paiement (JPG, PNG, WEBP ou PDF · 5 Mo max)
         <input name="proofFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required>
       </label>
       <button class="button button-outline" type="submit">${order.hasPaymentProof ? "Remplacer le reçu" : "Envoyer le reçu"}</button>
       <span class="payment-proof-message" aria-live="polite"></span>
-    </form>` : "";
-  if (!isAdmin) return renderTicket(order, items, paymentProofForm);
-  const controls = isAdmin ? `
-    <div class="admin-controls">
-      ${order.paymentStatus === "proof_received" ? `
-        <div class="payment-review">
-          <strong>Preuve de paiement à vérifier</strong>
-          <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>
-          <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">Confirmer le paiement</button>
-          ${order.paymentMethod ? `<span>Moyen : ${escapeHtml(order.paymentMethod)}</span>` : ""}
-          ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
-        </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Paiement vérifié</div>' : ""}
-      ${["proof_received", "verified"].includes(order.paymentStatus) ? "" : `
-        <label class="admin-quote-label" for="quote-total-${order.id}">Devis final (FCFA)
-          <input id="quote-total-${order.id}" type="number" required min="1" max="1000000000" step="1" value="${order.quoteTotalFcfa || ""}" placeholder="Montant total">
-        </label>
-        <button class="button button-primary send-quote" type="button" data-quote-id="${order.id}"
-          data-reference="${escapeHtml(order.reference)}" data-phone="${escapeHtml(order.phone)}" data-customer="${escapeHtml(order.customerName)}" data-destination="${order.destination}">
-          Enregistrer le devis et ouvrir WhatsApp
-        </button>`}
-      <label class="admin-status-label">Suivi
-        <select aria-label="Modifier le statut du colis ${escapeHtml(order.reference)}" data-order-id="${order.id}">${statusOptions(order.status, order.paymentStatus)}</select>
+    </form>`;
+}
+
+function shippingProofLink(order) {
+  if (order.shippingEur === null || order.shippingEur === undefined || order.shippingPaid) return "";
+  const message = [
+    `Bonjour, voici le reçu MoMo des frais d'expédition de ma commande ${order.reference}.`,
+    `Montant : ${formatFcfa(toFcfa(order.shippingEur))}.`
+  ].join("\n");
+  return `<a class="button button-primary shipping-whatsapp" href="https://wa.me/${whatsappNumberFor(order.destination)}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Envoyer le reçu d'expédition sur WhatsApp</a>`;
+}
+
+function adminControls(order) {
+  const canQuote = ["demande_recue", "devis_envoye"].includes(order.status)
+    && !["proof_received", "verified"].includes(order.paymentStatus);
+  const quoteSection = canQuote ? `
+    <div class="admin-step">
+      <strong>Étape 2 · Panier au montant exact</strong>
+      <label class="admin-quote-label" for="articles-eur-${order.id}">Montant exact des articles (€)
+        <input id="articles-eur-${order.id}" class="articles-eur-input" data-preview-id="${order.id}" type="number" required min="0.01" max="1000000" step="0.01" value="${order.articlesEur ?? ""}" placeholder="Ex. 149,90">
       </label>
-    </div>
-  ` : `<div class="order-summary">
-    ${order.quoteTotalFcfa
-      ? `<span>Devis reçu</span><strong>À payer : ${formatNumber(order.quoteTotalFcfa)} FCFA</strong>${paymentStatusNames[order.paymentStatus] ? `<span>${paymentStatusNames[order.paymentStatus]}</span>` : ""}`
-      : "<span>Le devis final vous sera envoyé sur WhatsApp.</span>"}
-    ${paymentProofForm}
-    ${order.paymentStatus === "verified" ? '<strong class="payment-verified">✓ Paiement vérifié</strong>' : ""}
+      <p class="quote-preview" id="quote-preview-${order.id}">${quotePreviewText(order.articlesEur)}</p>
+      <button class="button button-primary send-quote" type="button" data-quote-id="${order.id}">
+        ${order.articlesEur ? "Mettre à jour et renvoyer sur WhatsApp" : "Enregistrer et envoyer sur WhatsApp"}
+      </button>
+    </div>` : "";
+  const paymentSection = order.paymentStatus === "proof_received" ? `
+    <div class="payment-review">
+      <strong>Reçu MoMo à vérifier</strong>
+      <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>
+      <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">Confirmer le paiement</button>
+      ${order.paymentMethod ? `<span>Moyen : ${escapeHtml(order.paymentMethod)}</span>` : ""}
+      ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
+    </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Panier payé</div>' : "";
+  const canSetShipping = order.status === "recu_france" && order.paymentStatus === "verified" && !order.shippingPaid;
+  const shippingSection = canSetShipping ? `
+    <div class="admin-step">
+      <strong>Étape 3 · Expédition (${shippingModeNames[order.shippingMode]})</strong>
+      <label class="admin-quote-label" for="weight-kg-${order.id}">Poids du colis (kg)${order.shippingMode === "bateau" ? " · facultatif" : ""}
+        <input id="weight-kg-${order.id}" class="weight-kg-input" data-preview-id="${order.id}" data-mode="${order.shippingMode}" type="number" min="0.01" max="5000" step="0.01" value="${order.shippingWeightKg ?? ""}" placeholder="Ex. 2,5" ${order.shippingMode === "avion" ? "required" : ""}>
+      </label>
+      ${order.shippingMode === "bateau" ? `
+      <label class="admin-quote-label" for="shipping-eur-${order.id}">Tarif bateau (€)
+        <input id="shipping-eur-${order.id}" type="number" min="0.01" max="1000000" step="0.01" value="${order.shippingEur ?? ""}" placeholder="Montant en euros" required>
+      </label>` : `<p class="quote-preview" id="shipping-preview-${order.id}">${shippingPreviewText(order.shippingWeightKg)}</p>`}
+      <button class="button button-primary send-shipping" type="button" data-shipping-id="${order.id}">
+        ${order.shippingEur ? "Mettre à jour et renvoyer sur WhatsApp" : "Enregistrer et envoyer sur WhatsApp"}
+      </button>
+      ${order.shippingEur ? `<button class="button button-outline" type="button" data-shipping-paid-id="${order.id}">Confirmer le paiement de l'expédition</button>` : ""}
+    </div>` : "";
+  return `<div class="admin-controls">
+    ${quoteSection}${paymentSection}${shippingSection}
+    ${order.shippingPaid ? '<div class="payment-verified">✓ Expédition payée</div>' : ""}
+    <label class="admin-status-label">Suivi
+      <select aria-label="Modifier le statut de la commande ${escapeHtml(order.reference)}" data-order-id="${order.id}">${statusOptions(order)}</select>
+    </label>
   </div>`;
-  return `<article class="order-card ${isAdmin ? "admin-card" : ""}">
+}
+
+function quotePreviewText(articlesEur) {
+  const articles = Number(articlesEur);
+  if (!Number.isFinite(articles) || articles <= 0) return "Saisissez le montant pour calculer la commission.";
+  const commission = commissionFor(roundCents(articles));
+  const total = roundCents(articles + commission);
+  return `Commission ${formatEur(commission)} · Total ${formatEur(total)} = ${formatFcfa(toFcfa(total))}`;
+}
+
+function shippingPreviewText(weightKg) {
+  const weight = Number(weightKg);
+  if (!Number.isFinite(weight) || weight <= 0) return `Saisissez le poids : ${AIR_RATE_EUR_PER_KG} € par kilo.`;
+  const shipping = roundCents(weight * AIR_RATE_EUR_PER_KG);
+  return `${formatNumber(weight)} kg × ${AIR_RATE_EUR_PER_KG} € = ${formatEur(shipping)} = ${formatFcfa(toFcfa(shipping))}`;
+}
+
+function renderOrder(order, isAdmin) {
+  const items = renderItems(order);
+  if (!isAdmin) return renderTicket(order, items);
+  const date = new Date(`${order.createdAt.replace(" ", "T")}Z`).toLocaleDateString("fr-FR");
+  return `<article class="order-card admin-card">
     <div>
-      <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span><span class="order-date">${date}</span><span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"}</span><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></div>
-      <div class="order-items">${items}</div>${adminInfo}
-    </div>${controls}
+      <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span><span class="order-date">${date}</span><span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"} · ${shippingModeNames[order.shippingMode]}</span><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></div>
+      <div class="order-items">${items}</div>
+      <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
+        Tél. ${escapeHtml(order.phone)} · ${escapeHtml(order.location)}${order.notes ? `<br>Note : ${escapeHtml(order.notes)}` : ""}
+        ${order.subtotalEur ? `<br>Estimation client : ${escapeHtml(formatEur(order.subtotalEur))}` : ""}
+      </div>
+      <div class="cost-blocks">${quoteBreakdown(order)}${shippingBreakdown(order)}</div>
+    </div>${adminControls(order)}
   </article>`;
 }
 
 const ticketStatusNames = {
-  demande_recue: "Devis en préparation",
-  devis_envoye: "Paiement attendu",
-  colis_en_commande: "En commande",
-  commande_fournisseur: "Chez le fournisseur",
-  dans_avion: "En vol",
+  demande_recue: "Panier en préparation",
+  devis_envoye: "Paiement MoMo attendu",
+  commande_fournisseur: "Commandé",
+  recu_france: "Reçu en France",
+  en_transit: "En route",
   arrive: "Arrivé au pays",
   livre: "Livré"
 };
 
-function renderTicket(order, items, paymentProofForm) {
+function ticketStub(order) {
+  const cartPaid = order.paymentStatus === "verified";
+  const shippingDue = order.shippingEur !== null && order.shippingEur !== undefined && !order.shippingPaid;
+  if (!order.quoteTotalFcfa) return { label: "PANIER", amount: "À venir", note: "Montant exact envoyé sur WhatsApp" };
+  if (!cartPaid) return { label: "À PAYER · MOMO", amount: `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>`, note: paymentStatusNames[order.paymentStatus] || "" };
+  if (shippingDue) return { label: "EXPÉDITION · MOMO", amount: `${formatNumber(toFcfa(order.shippingEur))} <small>FCFA</small>`, note: "À régler avant le départ" };
+  if (order.shippingPaid) return { label: "TOUT EST RÉGLÉ", amount: "✓ Payé", note: "Panier et expédition" };
+  return { label: "PANIER PAYÉ", amount: `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>`, note: "Expédition calculée à réception en France" };
+}
+
+function renderTicket(order, items) {
   const index = Math.max(0, statusOrder.indexOf(order.status));
   const progress = Math.round((index / (statusOrder.length - 1)) * 100);
   const created = new Date(`${order.createdAt.replace(" ", "T")}Z`);
   const shortDate = created.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
   const isBenin = order.destination === "benin";
   const delivered = order.status === "livre";
-  const verified = order.paymentStatus === "verified";
-  const stubLabel = order.quoteTotalFcfa ? (verified ? "PAYÉ" : "À PAYER") : "DEVIS";
-  const stubAmount = order.quoteTotalFcfa ? `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>` : "À venir";
-  const stubNote = order.quoteTotalFcfa
-    ? (paymentStatusNames[order.paymentStatus] || "")
-    : "Envoyé sur WhatsApp";
+  const stub = ticketStub(order);
+  const costs = `${quoteBreakdown(order)}${shippingBreakdown(order)}`;
+  const foot = `${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}`;
   return `<article class="order-card ticket${delivered ? " is-delivered" : ""}" data-group="${delivered ? "delivered" : "active"}">
     <div class="ticket-body">
       <div class="ticket-main">
         <header class="ticket-head">
           <span class="ticket-ref">Réf. ${escapeHtml(order.reference)}</span>
-          <span class="ticket-brand"><svg aria-hidden="true"><use href="#i-plane"/></svg> Colis CK</span>
+          <span class="ticket-brand"><svg aria-hidden="true"><use href="#i-plane"/></svg> ${shippingModeNames[order.shippingMode]}</span>
         </header>
         <div class="ticket-content">
         <div class="ticket-route">
-          <div class="route-point"><small>DÉPART</small><strong>WEB</strong><span>Boutique en ligne</span></div>
+          <div class="route-point"><small>DÉPART</small><strong>FR</strong><span>France</span></div>
           <div class="route-track" style="--progress:${progress}%">
             <span class="route-status">${ticketStatusNames[order.status] || ""}</span>
             <span class="route-line"><span class="route-fill"></span><svg class="route-plane" aria-hidden="true"><use href="#i-plane"/></svg></span>
@@ -687,7 +817,7 @@ function renderTicket(order, items, paymentProofForm) {
         </div>
         <dl class="ticket-meta">
           <div><dt>Statut</dt><dd><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></dd></div>
-          <div><dt>Articles</dt><dd>${order.items.length}</dd></div>
+          <div><dt>Articles</dt><dd>${order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</dd></div>
           <div><dt>Destinataire</dt><dd>${escapeHtml(order.customerName || "—")}</dd></div>
         </dl>
         <div class="order-items">${items}</div>
@@ -696,13 +826,13 @@ function renderTicket(order, items, paymentProofForm) {
       </div>
       <div class="ticket-stub">
         <span class="ticket-date">${escapeHtml(shortDate)}</span>
-        <small>${stubLabel}</small>
-        <strong>${stubAmount}</strong>
-        ${stubNote ? `<span>${escapeHtml(stubNote)}</span>` : ""}
+        <small>${stub.label}</small>
+        <strong>${stub.amount}</strong>
+        ${stub.note ? `<span>${escapeHtml(stub.note)}</span>` : ""}
         <span class="ticket-barcode" aria-hidden="true"></span>
       </div>
     </div>
-    ${paymentProofForm ? `<div class="ticket-foot">${paymentProofForm}</div>` : ""}
+    ${foot ? `<div class="ticket-foot">${foot}</div>` : ""}
   </article>`;
 }
 
@@ -727,7 +857,7 @@ function renderCustomerOrders() {
   const html = visible.length
     ? visible.map((order) => renderOrder(order, false)).join("")
     : `<div class="empty-state">${emptyMessage}</div>`;
-  if (html === lastCustomerOrdersHtml) return;
+  if (html === lastCustomerOrdersHtml || isEditingInside("#orders-list")) return;
   lastCustomerOrdersHtml = html;
   $("#orders-list").innerHTML = html;
 }
@@ -744,34 +874,47 @@ function renderAdminOrders() {
   $("#admin-search-results").textContent = search
     ? `${orders.length} commande(s) trouvée(s) sur ${adminOrdersCache.length}.`
     : `${adminOrdersCache.length} commande(s) au total.`;
-  $("#admin-orders").innerHTML = orders.length
+  const html = orders.length
     ? orders.map((order) => renderOrder(order, true)).join("")
     : '<div class="empty-state">Aucune commande ne correspond à cette recherche.</div>';
+  if (html === lastAdminOrdersHtml || isEditingInside("#admin-orders")) return;
+  lastAdminOrdersHtml = html;
+  $("#admin-orders").innerHTML = html;
+}
+
+let lastAdminOrdersHtml = "";
+// Évite d'effacer une saisie en cours lors de l'actualisation automatique (toutes les 20 s).
+function isEditingInside(selector) {
+  const active = document.activeElement;
+  return Boolean(active && active.matches("input, select, textarea") && $(selector).contains(active));
 }
 
 function showOrderConfirmation(order) {
   const destination = order.destination === "benin" ? "Bénin" : "Togo";
   const products = order.items.map((item) => `
     <div class="confirmation-product">
-      <img src="${escapeHtml(item.image)}" alt="">
-      <div><strong>${escapeHtml(item.name)}</strong><span>${item.priceEur ? `${formatNumber(item.priceEur)} € (indicatif)` : "Prix à confirmer"}</span></div>
+      ${itemThumb(item.image)}
+      <div><strong>${item.quantity || 1} × ${escapeHtml(item.name)}</strong>
+        <a class="review-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.link)}</a>
+        <span>${item.priceEur ? `${escapeHtml(formatEur(item.priceEur))} l'unité (indicatif)` : "Prix à confirmer"}</span></div>
     </div>`).join("");
   $("#confirmation-reference").textContent = order.reference;
   $("#confirmation-summary").innerHTML = `
-    <h2>Récapitulatif du colis</h2>
+    <h2>Récapitulatif de la commande</h2>
     <div class="confirmation-products">${products}</div>
     <div class="confirmation-delivery">
-      <strong>Livraison au ${destination}</strong>
+      <strong>Livraison au ${destination} · ${shippingModeNames[order.shippingMode] || "Avion"}</strong>
       <span>${escapeHtml(order.customerName)} · ${escapeHtml(order.phone)}</span>
       <span>${escapeHtml(order.location)}</span>
       ${order.notes ? `<span>Précisions : ${escapeHtml(order.notes)}</span>` : ""}
     </div>`;
-  const whatsappNumber = order.destination === "benin" ? "22997158484" : "22890290081";
+  const whatsappNumber = whatsappNumberFor(order.destination);
   const message = [
-    `Bonjour, voici la référence de mon colis : ${order.reference}.`,
-    `Destinataire : ${order.customerName}.`,
-    `Produits : ${order.items.map((item) => item.name).join(", ")}.`,
-    `Livraison au ${destination} : ${order.location}.`
+    `Bonjour, voici ma commande ${order.reference}.`,
+    ...order.items.map((item) => `- ${item.quantity || 1} × ${item.name} : ${item.link}`),
+    `Expédition : ${shippingModeNames[order.shippingMode] || "Avion"}.`,
+    `Destinataire : ${order.customerName}, livraison au ${destination} : ${order.location}.`,
+    "Merci de m'envoyer le montant exact de mon panier."
   ].join("\n");
   $("#send-order-whatsapp").href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
   document.querySelectorAll(".customer-page").forEach((section) => { section.hidden = true; });
@@ -789,7 +932,7 @@ async function loadOrders() {
       adminOrdersCache = orders;
       $("#admin-quotes-pending").textContent = String(orders.filter((order) => order.status === "demande_recue").length);
       $("#admin-payments-pending").textContent = String(orders.filter((order) => order.paymentStatus === "proof_received").length);
-      $("#admin-orders-to-ship").textContent = String(orders.filter((order) => order.status === "commande_fournisseur").length);
+      $("#admin-orders-to-ship").textContent = String(orders.filter((order) => order.status === "recu_france").length);
       renderAdminOrders();
     } else {
       $("#home-order-count").textContent = String(orders.length);
@@ -1002,7 +1145,7 @@ $("#confirm-quote-request").addEventListener("click", () => {
   $("#order-form").requestSubmit();
 });
 $("#product-list").addEventListener("input", (event) => {
-  if (event.target.matches(".product-price")) refreshQuote();
+  if (event.target.matches(".product-price, .product-quantity")) refreshQuote();
 });
 $("#order-form [name=destination]").addEventListener("change", () => {
   refreshQuote();
@@ -1034,6 +1177,8 @@ $("#order-form").addEventListener("submit", async (event) => {
       const file = row.querySelector(".product-image-file").files[0];
       items.push({
         name: row.querySelector(".product-name").value,
+        link: row.querySelector(".product-link").value.trim(),
+        quantity: Number(row.querySelector(".product-quantity").value) || 1,
         priceEur: row.querySelector(".product-price").value || null,
         imageUrl: file ? "" : row.querySelector(".image-url").value.trim(),
         imageData: file ? await readFileAsDataUrl(file) : ""
@@ -1045,6 +1190,7 @@ $("#order-form").addEventListener("submit", async (event) => {
       destination: form.get("destination"),
       location: form.get("location"),
       notes: form.get("notes"),
+      shippingMode: form.get("shippingMode"),
       items
     };
     const { order } = await api("/api/orders", { method: "POST", body: JSON.stringify(values) });
@@ -1125,31 +1271,75 @@ $("#admin-orders").addEventListener("click", async (event) => {
     }
     return;
   }
-  const button = event.target.closest("button[data-quote-id]");
+  const shippingPaidButton = event.target.closest("button[data-shipping-paid-id]");
+  if (shippingPaidButton) {
+    if (!window.confirm("Confirmer que les frais d'expédition ont bien été reçus ?")) return;
+    shippingPaidButton.disabled = true;
+    try {
+      await api(`/api/orders/${shippingPaidButton.dataset.shippingPaidId}/shipping-paid`, { method: "PATCH", body: "{}" });
+      await loadOrders();
+    } catch (error) {
+      window.alert(error.message);
+      shippingPaidButton.disabled = false;
+    }
+    return;
+  }
+  const quoteButton = event.target.closest("button[data-quote-id]");
+  const shippingButton = event.target.closest("button[data-shipping-id]");
+  const button = quoteButton || shippingButton;
   if (!button) return;
-  const totalInput = $(`#quote-total-${button.dataset.quoteId}`);
-  if (!totalInput.reportValidity()) return;
+  const orderId = quoteButton ? quoteButton.dataset.quoteId : shippingButton.dataset.shippingId;
+  const order = adminOrdersCache.find((candidate) => String(candidate.id) === orderId);
+  if (!order) return;
+  const inputs = quoteButton
+    ? [$(`#articles-eur-${orderId}`)]
+    : [$(`#weight-kg-${orderId}`), $(`#shipping-eur-${orderId}`)].filter(Boolean);
+  if (!inputs.every((input) => input.reportValidity())) return;
   const whatsappWindow = window.open("about:blank", "_blank");
   if (!whatsappWindow) {
-    window.alert("Autorisez les fenêtres pop-up pour ouvrir le devis dans WhatsApp.");
+    window.alert("Autorisez les fenêtres pop-up pour ouvrir WhatsApp.");
     return;
   }
   whatsappWindow.opener = null;
   button.disabled = true;
   try {
-    const total = Number(totalInput.value);
-    await api(`/api/orders/${button.dataset.quoteId}/quote`, {
-      method: "PATCH",
-      body: JSON.stringify({ quoteTotalFcfa: total })
-    });
-    let phone = button.dataset.phone.replace(/\D/g, "");
-    if (phone.length === 8) phone = `${button.dataset.destination === "benin" ? "229" : "228"}${phone}`;
-    const text = [
-      `Bonjour ${button.dataset.customer},`,
-      `Votre devis pour le colis ${button.dataset.reference} est prêt.`,
-      `Montant total à payer : ${formatNumber(total)} FCFA.`,
-      "Après réception de votre paiement et vérification, nous lancerons la commande auprès du fournisseur."
-    ].join("\n");
+    let text;
+    if (quoteButton) {
+      const result = await api(`/api/orders/${orderId}/quote`, {
+        method: "PATCH",
+        body: JSON.stringify({ articlesEur: Number(inputs[0].value) })
+      });
+      const total = roundCents(result.articlesEur + result.commissionEur);
+      text = [
+        `Bonjour ${order.customerName},`,
+        `Votre panier pour la commande ${order.reference} est prêt :`,
+        `- Articles : ${formatEur(result.articlesEur)}`,
+        `- Commission : ${formatEur(result.commissionEur)}`,
+        `Total à payer par MoMo : ${formatEur(total)}, soit ${formatFcfa(result.quoteTotalFcfa)} (1 € = ${EUR_TO_FCFA} FCFA).`,
+        "Après le paiement, envoyez votre reçu depuis « Mes commandes » : nous commandons vos articles dès sa vérification."
+      ].join("\n");
+    } else {
+      const weightInput = $(`#weight-kg-${orderId}`);
+      const shippingInput = $(`#shipping-eur-${orderId}`);
+      const result = await api(`/api/orders/${orderId}/shipping`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          weightKg: weightInput.value ? Number(weightInput.value) : null,
+          shippingEur: shippingInput ? Number(shippingInput.value) : null
+        })
+      });
+      const detail = order.shippingMode === "avion"
+        ? `Expédition par avion : ${formatNumber(result.weightKg)} kg × ${AIR_RATE_EUR_PER_KG} € = ${formatEur(result.shippingEur)}`
+        : `Expédition par bateau${result.weightKg ? ` (${formatNumber(result.weightKg)} kg)` : ""} : ${formatEur(result.shippingEur)}`;
+      text = [
+        `Bonjour ${order.customerName},`,
+        `Votre commande ${order.reference} est arrivée à notre adresse en France.`,
+        `${detail}, soit ${formatFcfa(result.shippingFcfa)}.`,
+        "Merci de régler ce montant par MoMo et de nous envoyer le reçu : nous expédions votre colis dès réception."
+      ].join("\n");
+    }
+    let phone = order.phone.replace(/\D/g, "");
+    if (phone.length === 8) phone = `${order.destination === "benin" ? "229" : "228"}${phone}`;
     whatsappWindow.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     await loadOrders();
   } catch (error) {
@@ -1159,11 +1349,20 @@ $("#admin-orders").addEventListener("click", async (event) => {
   }
 });
 
+$("#admin-orders").addEventListener("input", (event) => {
+  const input = event.target;
+  if (input.matches(".articles-eur-input")) {
+    $(`#quote-preview-${input.dataset.previewId}`).textContent = quotePreviewText(input.value);
+  } else if (input.matches(".weight-kg-input") && input.dataset.mode === "avion") {
+    $(`#shipping-preview-${input.dataset.previewId}`).textContent = shippingPreviewText(input.value);
+  }
+});
+
 if (isAdminRoute) {
   document.body.classList.add("admin-entry");
   $("#auth-view .eyebrow").textContent = "ESPACE ADMINISTRATEUR";
   $("#auth-view h1").textContent = "Administration";
-  $("#auth-view .intro-copy").textContent = "Connectez-vous pour gérer les commandes et mettre à jour leur suivi.";
+  $("#auth-view .intro-copy").textContent = "Connectez-vous pour envoyer les paniers, vérifier les paiements MoMo et gérer les expéditions.";
   $("#auth-view .steps-note").hidden = true;
   $("#signup-tab").hidden = true;
   $("#auth-switch").hidden = true;
