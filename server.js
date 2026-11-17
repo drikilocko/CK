@@ -15,6 +15,7 @@ const STATUSES = [
   "livre"
 ];
 const SHIPPING_MODES = ["avion", "bateau"];
+const SHIPPING_COUNTRIES = ["benin", "togo"];
 const PAYMENT_METHODS = ["Mobile Money", "Virement bancaire", "Autre"];
 
 // Règles tarifaires : commission de 10 % (10 € fixes sous 100 €, 7 % au-delà de 5 000 €),
@@ -218,7 +219,7 @@ async function verifySupabaseConfig() {
 
 async function checkSupabaseTables() {
   try {
-    await supabaseRequest("ck_users", { query: { select: "id", limit: 0 } });
+    await supabaseRequest("ck_users", { query: { select: "id,country", limit: 0 } });
     await supabaseRequest("ck_sessions", { query: { select: "token_hash", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "id", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "quote_total_fcfa,quote_sent_at", limit: 0 } });
@@ -308,7 +309,7 @@ async function requireAuth(req, res, next) {
     });
     if (!session) return res.status(401).json({ error: "Session expirée. Veuillez vous reconnecter." });
     const [user] = await supabaseRequest("ck_users", {
-      query: { select: "id,username,role", id: `eq.${session.user_id}`, limit: 1 }
+      query: { select: "id,username,role,country", id: `eq.${session.user_id}`, limit: 1 }
     });
     if (!user) return res.status(401).json({ error: "Session expirée. Veuillez vous reconnecter." });
     req.user = user;
@@ -384,14 +385,20 @@ app.post("/api/signup", async (req, res, next) => {
     if (password.length < 8 || password.length > 72) {
       return res.status(400).json({ error: "Le mot de passe doit contenir entre 8 et 72 caractères." });
     }
+    const country = req.body.country === undefined || req.body.country === null || req.body.country === ""
+      ? null
+      : req.body.country;
+    if (country !== null && !SHIPPING_COUNTRIES.includes(country)) {
+      return res.status(400).json({ error: "Choisissez le Bénin ou le Togo comme pays." });
+    }
     const hash = await bcrypt.hash(password, 12);
     const [user] = await supabaseRequest("ck_users", {
       method: "POST",
-      body: { username, password_hash: hash },
+      body: { username, password_hash: hash, country },
       prefer: "return=representation"
     });
     await makeSession(user.id, res);
-    res.status(201).json({ user: { username, role: "customer" } });
+    res.status(201).json({ user: { username, role: "customer", country } });
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).json({ error: "Ce nom d'utilisateur existe déjà." });
@@ -405,13 +412,13 @@ app.post("/api/login", async (req, res, next) => {
     const username = typeof req.body.username === "string" ? req.body.username.trim() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
     const [user] = await supabaseRequest("ck_users", {
-      query: { select: "id,username,password_hash,role", username: `eq.${username}`, limit: 1 }
+      query: { select: "id,username,password_hash,role,country", username: `eq.${username}`, limit: 1 }
     });
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: "Nom d'utilisateur ou mot de passe incorrect." });
     }
     await makeSession(user.id, res);
-    res.json({ user: { username: user.username, role: user.role } });
+    res.json({ user: { username: user.username, role: user.role, country: user.country || null } });
   } catch (error) {
     next(error);
   }
@@ -434,7 +441,7 @@ app.post("/api/logout", async (req, res, next) => {
 });
 
 app.get("/api/me", requireAuth, (req, res) => {
-  res.json({ user: { username: req.user.username, role: req.user.role } });
+  res.json({ user: { username: req.user.username, role: req.user.role, country: req.user.country || null } });
 });
 
 app.post("/api/recognize-product", requireAuth, async (req, res, next) => {

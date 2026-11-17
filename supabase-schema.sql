@@ -44,6 +44,13 @@ alter table public.ck_orders
   add column if not exists payment_proof_path text,
   add column if not exists payment_verified_at timestamptz;
 
+-- Pays du client : centre la carte et attribue l'assistant WhatsApp (Bénin ou Togo).
+alter table public.ck_users
+  add column if not exists country text;
+alter table public.ck_users drop constraint if exists ck_users_country_check;
+alter table public.ck_users add constraint ck_users_country_check
+  check (country is null or country in ('benin', 'togo'));
+
 -- Parcours en 3 étapes : liens → panier + commission payé par MoMo → expédition depuis la France.
 alter table public.ck_orders
   add column if not exists shipping_mode text not null default 'avion',

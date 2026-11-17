@@ -40,7 +40,6 @@ let refreshTimer = null;
 let adminOrdersCache = [];
 let checkoutStep = 1;
 let deliveryMap = null;
-let deliveryMarker = null;
 let selectedMapPoint = null;
 let selectedMapLink = "";
 let quoteNoticeConfirmed = false;
@@ -86,6 +85,10 @@ function setAuthMode(signup) {
   $("#auth-switch").firstChild.textContent = signup ? "Déjà inscrit ? " : "Pas encore de compte ? ";
   $("#auth-switch-button").textContent = signup ? "Se connecter" : "Créer un compte";
   $("#auth-form [name=password]").autocomplete = signup ? "new-password" : "current-password";
+  $("#signup-country").hidden = !signup;
+  if (signup && !$("#signup-country input:checked")) {
+    $(`#signup-country input[value="${guessCountry()}"]`).checked = true;
+  }
   $("#auth-message").textContent = "";
   const panel = $(".auth-panel");
   panel.classList.remove("is-switching");
@@ -102,7 +105,7 @@ function hidePreloader() {
   const preloader = $("#preloader");
   if (!preloader) return;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const remaining = reducedMotion ? 0 : Math.max(0, 1600 - (performance.now() - preloaderStartedAt));
+  const remaining = reducedMotion ? 0 : Math.max(0, 3000 - (performance.now() - preloaderStartedAt));
   window.setTimeout(() => {
     preloader.classList.add("is-done");
     window.setTimeout(() => preloader.remove(), 700);
@@ -229,57 +232,128 @@ function setCheckoutStep(step) {
   if (step === 3) updateCheckoutReview();
 }
 
-function updateMapSelection(latlng) {
-  selectedMapPoint = { lat: latlng.lat, lng: latlng.lng };
-  if (!deliveryMarker) {
-    deliveryMarker = new maplibregl.Marker({ draggable: true })
-      .setLngLat([latlng.lng, latlng.lat])
-      .addTo(deliveryMap);
-    deliveryMarker.on("dragend", () => {
-      const position = deliveryMarker.getLngLat();
-      updateMapSelection({ lat: position.lat, lng: position.lng });
-    });
-  } else {
-    deliveryMarker.setLngLat([latlng.lng, latlng.lat]);
+// ---------------------------------------------------------------------------
+// Carte de livraison : repère fixe au centre, on déplace la carte dessous.
+// ---------------------------------------------------------------------------
+const countryCenters = {
+  benin: { center: [6.3703, 2.3912], name: "Bénin" },
+  togo: { center: [6.1375, 1.2123], name: "Togo" }
+};
+const addressCache = new Map();
+let reverseTimer = null;
+let reverseRequestId = 0;
+let searchTimer = null;
+let searchRequestId = 0;
+let pendingProgrammaticMove = null;
+let selectedMapAddress = "";
+let autoLocateTried = false;
+
+// Pays de la personne : celui du compte, sinon déduit du fuseau horaire et de la langue de l'appareil.
+function guessCountry() {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (zone === "Africa/Lome") return "togo";
+    if (zone === "Africa/Porto-Novo") return "benin";
+  } catch {
+    // Fuseau indisponible : on se rabat sur la langue.
   }
-  const coordinates = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
-  selectedMapLink = "";
-  $("#map-position-link").value = "";
-  $("#map-selection-title").textContent = "Emplacement sélectionné";
-  $("#map-selection-detail").textContent = `Coordonnées : ${coordinates}`;
-  $("#confirm-map").disabled = false;
+  const languages = (navigator.languages || [navigator.language || ""]).join(",").toUpperCase();
+  if (languages.includes("-TG")) return "togo";
+  return "benin";
 }
 
-function mapDefaultLocation() {
-  const savedLat = Number($("#map-latitude").value);
-  const savedLng = Number($("#map-longitude").value);
-  if (Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng) {
-    return [savedLat, savedLng];
-  }
-  return destinationMapCenter();
+function userCountry() {
+  return currentUser?.country || guessCountry();
+}
+
+function whatsappNumberFor(country) {
+  return country === "togo" ? "22890290081" : "22997158484";
+}
+
+function assistantLabelFor(country) {
+  return country === "togo" ? "Assistant Togo · +228 90 29 00 81" : "Assistant Bénin · +229 97 15 84 84";
 }
 
 function destinationMapCenter() {
-  return $("#order-form [name=destination]").value === "togo"
-    ? [6.1375, 1.2123]
-    : [6.3703, 2.3912];
+  const destination = $("#order-form [name=destination]").value;
+  return (countryCenters[destination] || countryCenters[userCountry()]).center;
 }
 
 function mapCoordinates([lat, lng]) {
   return [lng, lat];
 }
 
+function setMapStatus(title, detail) {
+  $("#map-selection-title").textContent = title;
+  $("#map-selection-detail").textContent = detail;
+}
+
+function shortAddress(result) {
+  const address = result.address || {};
+  const first = [address.road || address.pedestrian || address.neighbourhood || address.suburb, address.house_number]
+    .filter(Boolean).join(" ");
+  const second = address.suburb || address.city_district || address.village || address.town || address.city || "";
+  return [first, second].filter(Boolean).join(", ") || (result.display_name || "").split(",").slice(0, 2).join(",");
+}
+
+async function reverseGeocode(lat, lng) {
+  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  if (addressCache.has(key)) return addressCache.get(key);
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", lat.toFixed(6));
+  url.searchParams.set("lon", lng.toFixed(6));
+  url.searchParams.set("zoom", "18");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("accept-language", "fr");
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Service d'adresse indisponible (${response.status}).`);
+  const result = await response.json();
+  const value = { short: shortAddress(result), full: result.display_name || "" };
+  addressCache.set(key, value);
+  return value;
+}
+
+function selectMapPoint({ lat, lng }, { keepLink = false } = {}) {
+  selectedMapPoint = { lat, lng };
+  selectedMapAddress = "";
+  if (!keepLink) {
+    selectedMapLink = "";
+    $("#map-position-link").value = "";
+  }
+  $("#confirm-map").disabled = false;
+  const coordinates = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  setMapStatus(keepLink ? "Lien de position prêt" : "Recherche de l'adresse…", `Position GPS : ${coordinates}`);
+  clearTimeout(reverseTimer);
+  const requestId = ++reverseRequestId;
+  // Délai court pour respecter le service d'adresse (une requête à la fois).
+  reverseTimer = setTimeout(async () => {
+    try {
+      const address = await reverseGeocode(lat, lng);
+      if (requestId !== reverseRequestId) return;
+      selectedMapAddress = address.full;
+      if (!keepLink) setMapStatus(address.short || "Adresse sélectionnée", address.full || `Position GPS : ${coordinates}`);
+    } catch {
+      if (requestId !== reverseRequestId) return;
+      if (!keepLink) setMapStatus("Position sélectionnée", `Adresse introuvable · position GPS : ${coordinates}`);
+    }
+  }, 650);
+}
+
 function resetMapSelection() {
   selectedMapPoint = null;
   selectedMapLink = "";
+  selectedMapAddress = "";
+  reverseRequestId += 1;
   $("#map-position-link").value = "";
-  if (deliveryMarker) {
-    deliveryMap.removeLayer(deliveryMarker);
-    deliveryMarker = null;
-  }
-  $("#map-selection-title").textContent = "Lien de position";
-  $("#map-selection-detail").textContent = "Collez un lien Google Maps ou choisissez un point sur la carte.";
+  setMapStatus("Déplacez la carte", "Placez le repère sur votre adresse, recherchez-la ou utilisez votre position.");
   $("#confirm-map").disabled = true;
+}
+
+// Déplacement déclenché par le code (recherche, localisation, lien) : la position d'arrivée est retenue.
+function moveMapTo({ lat, lng }, zoom = 17, options = {}) {
+  pendingProgrammaticMove = options;
+  deliveryMap.flyTo({ center: [lng, lat], zoom, speed: 1.6, essential: true });
 }
 
 function coordinatesFromMapUrl(url) {
@@ -324,152 +398,157 @@ function useMapPositionLink(event) {
     return;
   }
   input.setCustomValidity("");
-  if (deliveryMarker) {
-    deliveryMap.removeLayer(deliveryMarker);
-    deliveryMarker = null;
-  }
-  selectedMapPoint = null;
   selectedMapLink = url.toString();
   const coordinates = coordinatesFromMapUrl(url);
   if (coordinates) {
-    deliveryMap.flyTo({ center: [coordinates.lng, coordinates.lat], zoom: 16 });
-    updateMapSelection(coordinates);
-    selectedMapLink = url.toString();
-    input.value = selectedMapLink;
-    $("#map-selection-title").textContent = "Lien de position prêt";
-    $("#map-selection-detail").textContent = "Le repère a été placé aux coordonnées du lien.";
+    moveMapTo(coordinates, 17, { keepLink: true });
   } else {
-    $("#map-latitude").value = "";
-    $("#map-longitude").value = "";
-    $("#map-selection-title").textContent = "Lien de position prêt";
-    $("#map-selection-detail").textContent = "Ce lien sera enregistré avec la commande.";
+    selectedMapPoint = null;
+    $("#confirm-map").disabled = false;
+    setMapStatus("Lien de position prêt", "Ce lien sera enregistré avec la commande.");
   }
-  $("#confirm-map").disabled = false;
+}
+
+function hideSearchResults() {
+  $("#map-search-results").hidden = true;
+  $("#map-search-results").innerHTML = "";
+}
+
+async function searchAddress(query) {
+  const requestId = ++searchRequestId;
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("q", query);
+  url.searchParams.set("countrycodes", "bj,tg");
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("accept-language", "fr");
+  const list = $("#map-search-results");
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error();
+    const results = await response.json();
+    if (requestId !== searchRequestId) return;
+    list.innerHTML = results.length
+      ? results.map((result) => `<li><button type="button" role="option" data-lat="${escapeHtml(result.lat)}" data-lng="${escapeHtml(result.lon)}">
+          <strong>${escapeHtml(shortAddress(result))}</strong><span>${escapeHtml(result.display_name)}</span></button></li>`).join("")
+      : '<li class="map-search-empty">Aucun résultat. Essayez un quartier ou une ville.</li>';
+  } catch {
+    if (requestId !== searchRequestId) return;
+    list.innerHTML = '<li class="map-search-empty">Recherche indisponible pour le moment.</li>';
+  }
+  list.hidden = false;
+}
+
+function locateOnMap({ silent = false } = {}) {
+  const button = $("#locate-on-map");
+  if (!navigator.geolocation) {
+    if (!silent) setMapStatus("Localisation indisponible", "La géolocalisation n'est pas prise en charge par ce navigateur.");
+    return;
+  }
+  button.classList.add("is-loading");
+  if (!silent) setMapStatus("Localisation…", "Recherche de votre position GPS.");
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      button.classList.remove("is-loading");
+      moveMapTo({ lat: coords.latitude, lng: coords.longitude }, 17);
+    },
+    (error) => {
+      button.classList.remove("is-loading");
+      if (silent && !selectedMapPoint) {
+        resetMapSelection();
+        return;
+      }
+      const messages = {
+        1: "Autorisez l'accès à votre position dans les réglages du navigateur, ou déplacez la carte.",
+        2: "Position indisponible. Vérifiez le GPS ou déplacez la carte.",
+        3: "La recherche a pris trop de temps. Réessayez ou déplacez la carte."
+      };
+      setMapStatus("Position introuvable", messages[error.code] || "Impossible d'obtenir votre position.");
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+  );
 }
 
 function openDeliveryMap() {
   $("#map-modal").hidden = false;
   document.body.classList.add("map-open");
+  const savedLat = Number($("#map-latitude").value);
+  const savedLng = Number($("#map-longitude").value);
+  const hasSaved = Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng;
+  const start = hasSaved ? [savedLat, savedLng] : destinationMapCenter();
   if (!deliveryMap) {
     deliveryMap = new maplibregl.Map({
       container: "delivery-map",
-      style: "https://tiles.openfreemap.org/styles/positron",
-      center: mapCoordinates(mapDefaultLocation()),
-      zoom: 14,
-      attributionControl: false
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: mapCoordinates(start),
+      zoom: hasSaved ? 16 : 12,
+      attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false
     });
-    deliveryMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    deliveryMap.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
-    deliveryMap.getContainer().classList.add("map-grayscale");
-    deliveryMap.on("click", (event) => updateMapSelection(event.lngLat));
+    deliveryMap.touchZoomRotate.disableRotation();
+    deliveryMap.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+    // Mentions repliées par défaut (le bouton « i » les affiche) pour ne pas masquer la carte.
+    deliveryMap.once("load", () => {
+      deliveryMap.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+    });
+    deliveryMap.on("movestart", () => $("#map-modal").classList.add("is-moving"));
+    deliveryMap.on("moveend", (event) => {
+      $("#map-modal").classList.remove("is-moving");
+      const userMoved = Boolean(event.originalEvent);
+      if (!userMoved && !pendingProgrammaticMove) return;
+      const options = userMoved ? {} : pendingProgrammaticMove;
+      pendingProgrammaticMove = null;
+      const center = deliveryMap.getCenter();
+      selectMapPoint({ lat: center.lat, lng: center.lng }, options);
+    });
   } else {
-    deliveryMap.jumpTo({ center: mapCoordinates(mapDefaultLocation()), zoom: 14 });
+    deliveryMap.jumpTo({ center: mapCoordinates(start), zoom: hasSaved ? 16 : 12 });
   }
-  const savedLat = Number($("#map-latitude").value);
-  const savedLng = Number($("#map-longitude").value);
-  if (selectedMapLink) {
-    if (Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng) {
-      updateMapSelection({ lat: savedLat, lng: savedLng });
-      selectedMapLink = $("#order-form [name=location]").value;
-    }
+  hideSearchResults();
+  $("#map-search").value = "";
+  if (selectedMapLink && !hasSaved) {
     $("#map-position-link").value = selectedMapLink;
-    $("#map-selection-title").textContent = "Lien de position prêt";
-    $("#map-selection-detail").textContent = "Ce lien sera enregistré avec la commande.";
     $("#confirm-map").disabled = false;
-  } else if (Number.isFinite(savedLat) && Number.isFinite(savedLng) && savedLat && savedLng) {
-    updateMapSelection({ lat: savedLat, lng: savedLng });
+    setMapStatus("Lien de position prêt", "Ce lien sera enregistré avec la commande.");
+  } else if (hasSaved) {
+    selectMapPoint({ lat: savedLat, lng: savedLng }, { keepLink: Boolean(selectedMapLink) });
   } else {
     resetMapSelection();
+    // Première ouverture : on centre directement sur la personne si elle l'accepte.
+    if (!autoLocateTried) {
+      autoLocateTried = true;
+      locateOnMap({ silent: true });
+    }
   }
   window.setTimeout(() => deliveryMap.resize(), 0);
-  $("#close-map").focus();
-}
-
-function locateOnMap() {
-  const button = $("#locate-on-map");
-  const detail = $("#map-selection-detail");
-  if (!navigator.geolocation) {
-    detail.textContent = "La géolocalisation n'est pas prise en charge par ce navigateur.";
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = "Localisation…";
-  detail.textContent = "Recherche de votre position GPS…";
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const point = { lat: coords.latitude, lng: coords.longitude };
-      deliveryMap.flyTo({ center: [point.lng, point.lat], zoom: 17 });
-      updateMapSelection(point);
-      $("#map-selection-title").textContent = "Votre position est sélectionnée";
-      detail.textContent = "Le repère indique votre position. Vous pouvez le déplacer avant de confirmer.";
-      button.disabled = false;
-      button.textContent = "◎ Me localiser";
-    },
-    (error) => {
-      const messages = {
-        1: "Autorisez l'accès à votre position dans les réglages du navigateur, puis réessayez.",
-        2: "Votre position est indisponible. Vérifiez le GPS ou la connexion, puis réessayez.",
-        3: "La recherche a pris trop de temps. Réessayez."
-      };
-      detail.textContent = messages[error.code] || "Impossible d'obtenir votre position. Réessayez.";
-      button.disabled = false;
-      button.textContent = "◎ Me localiser";
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-  );
 }
 
 function closeDeliveryMap() {
   $("#map-modal").hidden = true;
   document.body.classList.remove("map-open");
+  hideSearchResults();
   $("#open-map").focus();
 }
 
-async function confirmDeliveryLocation() {
+function confirmDeliveryLocation() {
   if (!selectedMapPoint && !selectedMapLink) return;
-  $("#confirm-map").disabled = true;
   if (selectedMapLink) {
     $("#order-form [name=location]").value = selectedMapLink;
-    if (selectedMapPoint) {
-      $("#map-latitude").value = selectedMapPoint.lat.toFixed(5);
-      $("#map-longitude").value = selectedMapPoint.lng.toFixed(5);
-    } else {
-      $("#map-latitude").value = "";
-      $("#map-longitude").value = "";
-    }
+    $("#map-latitude").value = selectedMapPoint ? selectedMapPoint.lat.toFixed(5) : "";
+    $("#map-longitude").value = selectedMapPoint ? selectedMapPoint.lng.toFixed(5) : "";
     $("#location-coordinates").textContent = "Lien de position ajouté.";
     closeDeliveryMap();
     return;
   }
-  const { lat, lng } = selectedMapPoint;
-  const latitude = lat.toFixed(5);
-  const longitude = lng.toFixed(5);
-  let address = `Position GPS ${latitude}, ${longitude}`;
-  $("#confirm-map").textContent = "Recherche de l'adresse…";
-  try {
-    const url = new URL("https://nominatim.openstreetmap.org/reverse");
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("lat", latitude);
-    url.searchParams.set("lon", longitude);
-    url.searchParams.set("zoom", "18");
-    url.searchParams.set("accept-language", "fr");
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Le service d'adresse a répondu ${response.status}.`);
-    const result = await response.json();
-    if (result.display_name) address = result.display_name;
-  } catch (error) {
-    console.warn("Adresse automatique indisponible :", error);
-    $("#location-coordinates").textContent = "Adresse automatique indisponible ; les coordonnées GPS seront utilisées.";
-  }
-  const compactAddress = `${address.slice(0, 245)} (${latitude}, ${longitude})`;
-  $("#order-form [name=location]").value = compactAddress;
+  const latitude = selectedMapPoint.lat.toFixed(5);
+  const longitude = selectedMapPoint.lng.toFixed(5);
+  const address = selectedMapAddress || `Position GPS ${latitude}, ${longitude}`;
+  $("#order-form [name=location]").value = `${address.slice(0, 245)} (${latitude}, ${longitude})`;
   $("#map-latitude").value = latitude;
   $("#map-longitude").value = longitude;
-  if (!$("#location-coordinates").textContent) {
-    $("#location-coordinates").textContent = `Position GPS : ${latitude}, ${longitude}`;
-  }
-  $("#confirm-map").textContent = "Confirmer cette adresse";
+  $("#location-coordinates").textContent = `Position GPS : ${latitude}, ${longitude}`;
   closeDeliveryMap();
 }
 
@@ -644,9 +723,6 @@ function shippingBreakdown(order) {
   </div>`;
 }
 
-function whatsappNumberFor(destination) {
-  return destination === "benin" ? "22997158484" : "22890290081";
-}
 
 function renderItems(order) {
   return order.items.map((item) => {
@@ -686,7 +762,7 @@ function shippingProofLink(order) {
     `Bonjour, voici le reçu MoMo des frais d'expédition de ma commande ${order.reference}.`,
     `Montant : ${formatFcfa(toFcfa(order.shippingEur))}.`
   ].join("\n");
-  return `<a class="button button-primary shipping-whatsapp" href="https://wa.me/${whatsappNumberFor(order.destination)}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Envoyer le reçu d'expédition sur WhatsApp</a>`;
+  return `<a class="button button-primary shipping-whatsapp" href="https://wa.me/${whatsappNumberFor(userCountry())}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Envoyer le reçu à mon assistant</a>`;
 }
 
 function adminControls(order) {
@@ -798,7 +874,7 @@ function renderTicket(order, items) {
   const stub = ticketStub(order);
   const costs = `${quoteBreakdown(order)}${shippingBreakdown(order)}`;
   const foot = `${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}`;
-  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}" data-group="${delivered ? "delivered" : "active"}">
+  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}" data-order-id="${order.id}" data-group="${delivered ? "delivered" : "active"}">
     <div class="ticket-body">
       <div class="ticket-main">
         <header class="ticket-head">
@@ -889,26 +965,13 @@ function isEditingInside(selector) {
   return Boolean(active && active.matches("input, select, textarea") && $(selector).contains(active));
 }
 
-function showOrderConfirmation(order) {
+// Après l'enregistrement : redirection vers « Mes commandes », message de succès et commande mise en évidence.
+function showOrderSuccess(order) {
   const destination = order.destination === "benin" ? "Bénin" : "Togo";
-  const products = order.items.map((item) => `
-    <div class="confirmation-product">
-      ${itemThumb(item.image)}
-      <div><strong>${item.quantity || 1} × ${escapeHtml(item.name)}</strong>
-        <a class="review-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.link)}</a>
-        <span>${item.priceEur ? `${escapeHtml(formatEur(item.priceEur))} l'unité (indicatif)` : "Prix à confirmer"}</span></div>
-    </div>`).join("");
-  $("#confirmation-reference").textContent = order.reference;
-  $("#confirmation-summary").innerHTML = `
-    <h2>Récapitulatif de la commande</h2>
-    <div class="confirmation-products">${products}</div>
-    <div class="confirmation-delivery">
-      <strong>Livraison au ${destination} · ${shippingModeNames[order.shippingMode] || "Avion"}</strong>
-      <span>${escapeHtml(order.customerName)} · ${escapeHtml(order.phone)}</span>
-      <span>${escapeHtml(order.location)}</span>
-      ${order.notes ? `<span>Précisions : ${escapeHtml(order.notes)}</span>` : ""}
-    </div>`;
-  const whatsappNumber = whatsappNumberFor(order.destination);
+  const country = userCountry();
+  const whatsappNumber = whatsappNumberFor(country);
+  $("#order-success-reference").textContent = order.reference;
+  $("#assistant-label").textContent = assistantLabelFor(country);
   const message = [
     `Bonjour, voici ma commande ${order.reference}.`,
     ...order.items.map((item) => `- ${item.quantity || 1} × ${item.name} : ${item.link}`),
@@ -917,10 +980,21 @@ function showOrderConfirmation(order) {
     "Merci de m'envoyer le montant exact de mon panier."
   ].join("\n");
   $("#send-order-whatsapp").href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-  document.querySelectorAll(".customer-page").forEach((section) => { section.hidden = true; });
-  $("#customer-nav").hidden = true;
-  $("#customer-page-confirmation").hidden = false;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  $("#order-success").hidden = false;
+  customerOrderFilter = "all";
+  document.querySelectorAll("[data-order-filter]").forEach((button) => {
+    const active = button.dataset.orderFilter === "all";
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  lastCustomerOrdersHtml = "";
+  renderCustomerOrders();
+  showCustomerPage("orders");
+  const ticket = document.querySelector(`#orders-list [data-order-id="${order.id}"]`);
+  if (ticket) {
+    ticket.classList.add("is-new");
+    window.setTimeout(() => ticket.classList.remove("is-new"), 4000);
+  }
 }
 
 async function loadOrders() {
@@ -947,7 +1021,7 @@ async function loadOrders() {
 function showCustomerPage(page, updateHash = true) {
   if (!Object.hasOwn(customerPageHashes, page)) page = "order";
   $("#customer-nav").hidden = false;
-  $("#customer-page-confirmation").hidden = true;
+  if (page !== "orders") $("#order-success").hidden = true;
   document.querySelectorAll(".customer-page").forEach((section) => {
     section.hidden = section.id !== `customer-page-${page}`;
   });
@@ -969,6 +1043,7 @@ function showCustomerPage(page, updateHash = true) {
 
 function showApp(user) {
   currentUser = user;
+  document.body.classList.remove("auth-screen");
   $("#auth-view").hidden = true;
   $("#app-view").hidden = false;
   $("#account-bar").hidden = false;
@@ -979,6 +1054,10 @@ function showApp(user) {
   $("#admin-view").hidden = user.role !== "admin";
   if (user.role !== "admin") {
     if ($("#product-list").children.length === 0) addProductRow();
+    // Destination présélectionnée selon le pays de la personne (modifiable dans le formulaire).
+    if (!$("#order-form [name=location]").value) {
+      $("#order-form [name=destination]").value = userCountry();
+    }
     const initialPage = Object.keys(customerPageHashes).find((page) => customerPageHashes[page] === window.location.hash) || "order";
     showCustomerPage(initialPage, window.location.hash !== customerPageHashes[initialPage]);
   }
@@ -998,6 +1077,37 @@ $("#toggle-password").addEventListener("click", (event) => {
   button.setAttribute("aria-pressed", String(show));
   button.setAttribute("aria-label", show ? "Masquer le mot de passe" : "Afficher le mot de passe");
   button.querySelector("use").setAttribute("href", show ? "#i-eye" : "#i-eye-off");
+});
+$("#close-order-success").addEventListener("click", () => { $("#order-success").hidden = true; });
+
+// Grand écran : panneau de navigation réductible, choix mémorisé sur cet appareil.
+const NAV_COLLAPSED_KEY = "ck-nav-collapsed";
+function setNavCollapsed(collapsed) {
+  $("#customer-view").classList.toggle("nav-collapsed", collapsed);
+  const button = $("#nav-collapse");
+  const label = collapsed ? "Agrandir le menu" : "Réduire le menu";
+  button.setAttribute("aria-expanded", String(!collapsed));
+  button.title = label;
+  button.querySelector("span").textContent = label;
+  try {
+    localStorage.setItem(NAV_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    // Stockage indisponible (navigation privée) : le choix vaut pour cette visite seulement.
+  }
+}
+try {
+  if (localStorage.getItem(NAV_COLLAPSED_KEY) === "1") setNavCollapsed(true);
+} catch {
+  // Stockage indisponible : panneau agrandi par défaut.
+}
+$("#nav-collapse").addEventListener("click", () => {
+  setNavCollapsed(!$("#customer-view").classList.contains("nav-collapsed"));
+});
+// Icône de boutique indisponible : on affiche son initiale à la place.
+document.querySelectorAll(".marketplace-icon img").forEach((image) => {
+  const fallback = () => image.closest(".marketplace-icon").classList.add("is-fallback");
+  if (image.complete && !image.naturalWidth) fallback();
+  else image.addEventListener("error", fallback, { once: true });
 });
 document.querySelector(".order-filters").addEventListener("click", (event) => {
   const chip = event.target.closest("[data-order-filter]");
@@ -1038,7 +1148,11 @@ $("#auth-form").addEventListener("submit", async (event) => {
   try {
     const data = await api(signupMode ? "/api/signup" : "/api/login", {
       method: "POST",
-      body: JSON.stringify({ username: form.get("username"), password: form.get("password") })
+      body: JSON.stringify({
+        username: form.get("username"),
+        password: form.get("password"),
+        ...(signupMode ? { country: form.get("country") || guessCountry() } : {})
+      })
     });
     if (isAdminRoute && data.user.role !== "admin") {
       await api("/api/logout", { method: "POST", body: "{}" });
@@ -1057,6 +1171,7 @@ $("#logout-button").addEventListener("click", async () => {
   await api("/api/logout", { method: "POST", body: "{}" });
   clearInterval(refreshTimer);
   currentUser = null;
+  document.body.classList.add("auth-screen");
   $("#auth-view").hidden = false;
   $("#app-view").hidden = true;
   $("#account-bar").hidden = true;
@@ -1113,7 +1228,31 @@ window.addEventListener("hashchange", () => {
 
 $("#add-product").addEventListener("click", addProductRow);
 $("#open-map").addEventListener("click", openDeliveryMap);
-$("#locate-on-map").addEventListener("click", locateOnMap);
+$("#locate-on-map").addEventListener("click", () => locateOnMap());
+$("#map-search").addEventListener("input", (event) => {
+  clearTimeout(searchTimer);
+  const query = event.target.value.trim();
+  if (query.length < 3) {
+    searchRequestId += 1;
+    hideSearchResults();
+    return;
+  }
+  searchTimer = setTimeout(() => searchAddress(query), 450);
+});
+$("#map-search-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const first = $("#map-search-results button");
+  if (first) first.click();
+  else if (event.currentTarget.querySelector("input").value.trim().length >= 3) searchAddress($("#map-search").value.trim());
+});
+$("#map-search-results").addEventListener("click", (event) => {
+  const result = event.target.closest("button[data-lat]");
+  if (!result) return;
+  $("#map-search").value = result.querySelector("strong").textContent;
+  $("#map-search").blur();
+  hideSearchResults();
+  moveMapTo({ lat: Number(result.dataset.lat), lng: Number(result.dataset.lng) }, 17);
+});
 $("#close-map").addEventListener("click", closeDeliveryMap);
 $("#cancel-map").addEventListener("click", closeDeliveryMap);
 $("#confirm-map").addEventListener("click", confirmDeliveryLocation);
@@ -1198,6 +1337,7 @@ $("#order-form").addEventListener("submit", async (event) => {
       if (image.src.startsWith("blob:")) URL.revokeObjectURL(image.src);
     });
     $("#order-form").reset();
+    $("#order-form [name=destination]").value = userCountry();
     $("#map-latitude").value = "";
     $("#map-longitude").value = "";
     $("#location-coordinates").textContent = "";
@@ -1208,7 +1348,7 @@ $("#order-form").addEventListener("submit", async (event) => {
     addProductRow();
     setCheckoutStep(1);
     await loadOrders();
-    showOrderConfirmation(order);
+    showOrderSuccess(order);
   } catch (error) {
     message.textContent = error.message;
   } finally {

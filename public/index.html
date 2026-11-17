@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="auth-screen">
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
     <symbol id="i-plane" viewBox="0 0 24 24"><g transform="rotate(90 12 12)"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"/></g></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.5Z"/></symbol>
@@ -18,17 +18,36 @@
     <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></g></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></g></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></g></symbol>
+    <symbol id="i-pin" viewBox="0 0 40 52"><path fill="currentColor" d="M20 0C9 0 0 8.7 0 19.6 0 33.4 17 49.5 18.4 50.9a2.3 2.3 0 0 0 3.2 0C23 49.5 40 33.4 40 19.6 40 8.7 31 0 20 0Z"/><circle cx="20" cy="19.5" r="7.5" fill="#fff"/></symbol>
     <symbol id="i-eye-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.6 3.5M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></g></symbol>
   </svg>
 
-  <div id="preloader" class="preloader" role="status" aria-label="Chargement de CK">
+  <div id="preloader" class="preloader" role="status" aria-label="Chargement de Speed Shopping">
     <div class="preloader-mark">
-      <div class="preloader-flight" aria-hidden="true">
-        <svg class="preloader-trail" viewBox="0 0 240 90" preserveAspectRatio="none"><path d="M8 82 C 70 78, 150 40, 232 10" /></svg>
-        <svg class="preloader-plane"><use href="#i-plane"/></svg>
-      </div>
-      <span class="preloader-logo">CK<span>.</span></span>
-      <p class="preloader-tagline">Vos colis prennent leur envol</p>
+      <!-- Texte, traînée et avion partagent le même repère : l'arc part du « S » de Speed et se pose sur le « g » de Shopping. -->
+      <svg class="preloader-brand" viewBox="0 -30 360 150" aria-hidden="true">
+        <defs>
+          <linearGradient id="trail-gradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#a98bff" stop-opacity="0"/>
+            <stop offset=".35" stop-color="#a98bff" stop-opacity=".8"/>
+            <stop offset="1" stop-color="#e9ffb0"/>
+          </linearGradient>
+        </defs>
+        <g class="preloader-words">
+          <text x="14" y="96" textLength="332" lengthAdjust="spacingAndGlyphs"><tspan class="word-speed">Speed</tspan><tspan class="word-shopping" dx="10">Shopping</tspan></text>
+        </g>
+        <path class="preloader-arc" pathLength="100" d="M 27 58 C 80 -32, 262 -32, 330 56"/>
+        <circle class="preloader-origin" cx="27" cy="58" r="3.5"/>
+        <g class="preloader-plane">
+          <svg x="-14" y="-14" width="28" height="28"><use href="#i-plane"/></svg>
+          <animateMotion begin=".35s" dur="1.6s" fill="freeze" rotate="auto" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".45 0 .2 1" path="M 27 58 C 80 -32, 262 -32, 330 56"/>
+        </g>
+        <circle class="preloader-landing" cx="330" cy="56" r="4"/>
+      </svg>
+      <p class="preloader-tagline">Vos achats en Europe, livrés au Bénin et au Togo</p>
     </div>
   </div>
 
@@ -74,9 +93,10 @@
           <g class="scene-cloud scene-cloud-a"><ellipse cx="70" cy="62" rx="34" ry="12"/><ellipse cx="88" cy="54" rx="20" ry="13"/><ellipse cx="58" cy="56" rx="15" ry="10"/></g>
           <g class="scene-cloud scene-cloud-b"><ellipse cx="236" cy="62" rx="26" ry="9"/><ellipse cx="248" cy="56" rx="15" ry="10"/></g>
           <path class="scene-route" d="M-10 150 C 80 140, 170 80, 410 48"/>
-          <path class="scene-hill-back" d="M0 170 L70 108 L120 140 L190 82 L262 150 L320 112 L400 160 V220 H0Z"/>
-          <path class="scene-hill-snow" d="M190 82 L172 98 L184 96 L192 104 L200 94 L212 99Z"/>
-          <path class="scene-hill-front" d="M0 190 C 70 160, 140 176, 210 184 C 280 192, 340 164, 400 172 V220 H0Z"/>
+          <g class="scene-city-back"><rect x="0" y="122" width="40" height="78"/><rect x="38" y="96" width="30" height="104"/><rect x="66" y="132" width="44" height="68"/><rect x="108" y="78" width="26" height="122"/><rect x="132" y="112" width="50" height="88"/><rect x="180" y="92" width="36" height="108"/><rect x="214" y="128" width="48" height="72"/><rect x="258" y="102" width="32" height="98"/><rect x="288" y="136" width="40" height="64"/><rect x="326" y="86" width="34" height="114"/><rect x="358" y="118" width="42" height="82"/><rect x="119" y="62" width="3" height="16"/><rect x="341" y="72" width="3" height="14"/></g>
+          <g class="scene-city-front"><rect x="0" y="150" width="52" height="55" rx="2"/><rect x="48" y="136" width="36" height="69" rx="2"/><rect x="150" y="146" width="46" height="59" rx="2"/><rect x="194" y="162" width="32" height="43" rx="2"/><rect x="224" y="152" width="58" height="53" rx="2"/><rect x="328" y="140" width="40" height="65" rx="2"/><rect x="366" y="158" width="34" height="47" rx="2"/></g>
+          <g class="scene-windows"><rect x="6" y="158" width="5" height="6" rx="1"/><rect x="16" y="158" width="5" height="6" rx="1"/><rect x="26" y="158" width="5" height="6" rx="1"/><rect x="36" y="158" width="5" height="6" rx="1" class="scene-window-off"/><rect x="16" y="170" width="5" height="6" rx="1"/><rect x="26" y="170" width="5" height="6" rx="1"/><rect x="36" y="170" width="5" height="6" rx="1" class="scene-window-off"/><rect x="6" y="182" width="5" height="6" rx="1"/><rect x="26" y="182" width="5" height="6" rx="1"/><rect x="36" y="182" width="5" height="6" rx="1" class="scene-window-off"/><rect x="54" y="144" width="5" height="6" rx="1"/><rect x="64" y="144" width="5" height="6" rx="1"/><rect x="54" y="156" width="5" height="6" rx="1" class="scene-window-off"/><rect x="64" y="156" width="5" height="6" rx="1"/><rect x="74" y="156" width="5" height="6" rx="1"/><rect x="54" y="168" width="5" height="6" rx="1"/><rect x="74" y="168" width="5" height="6" rx="1"/><rect x="54" y="180" width="5" height="6" rx="1"/><rect x="64" y="180" width="5" height="6" rx="1"/><rect x="74" y="180" width="5" height="6" rx="1" class="scene-window-off"/><rect x="166" y="154" width="5" height="6" rx="1"/><rect x="176" y="154" width="5" height="6" rx="1"/><rect x="186" y="154" width="5" height="6" rx="1" class="scene-window-off"/><rect x="156" y="166" width="5" height="6" rx="1"/><rect x="176" y="166" width="5" height="6" rx="1"/><rect x="186" y="166" width="5" height="6" rx="1" class="scene-window-off"/><rect x="156" y="178" width="5" height="6" rx="1"/><rect x="166" y="178" width="5" height="6" rx="1"/><rect x="186" y="178" width="5" height="6" rx="1" class="scene-window-off"/><rect x="200" y="170" width="5" height="6" rx="1"/><rect x="210" y="170" width="5" height="6" rx="1"/><rect x="200" y="182" width="5" height="6" rx="1"/><rect x="230" y="160" width="5" height="6" rx="1"/><rect x="240" y="160" width="5" height="6" rx="1"/><rect x="250" y="160" width="5" height="6" rx="1"/><rect x="260" y="160" width="5" height="6" rx="1" class="scene-window-off"/><rect x="230" y="172" width="5" height="6" rx="1"/><rect x="240" y="172" width="5" height="6" rx="1"/><rect x="250" y="172" width="5" height="6" rx="1" class="scene-window-off"/><rect x="260" y="172" width="5" height="6" rx="1"/><rect x="230" y="184" width="5" height="6" rx="1"/><rect x="240" y="184" width="5" height="6" rx="1" class="scene-window-off"/><rect x="250" y="184" width="5" height="6" rx="1"/><rect x="260" y="184" width="5" height="6" rx="1"/><rect x="334" y="148" width="5" height="6" rx="1" class="scene-window-off"/><rect x="344" y="148" width="5" height="6" rx="1"/><rect x="354" y="148" width="5" height="6" rx="1"/><rect x="334" y="160" width="5" height="6" rx="1"/><rect x="354" y="160" width="5" height="6" rx="1"/><rect x="334" y="172" width="5" height="6" rx="1"/><rect x="344" y="172" width="5" height="6" rx="1"/><rect x="354" y="172" width="5" height="6" rx="1" class="scene-window-off"/><rect x="344" y="184" width="5" height="6" rx="1"/><rect x="354" y="184" width="5" height="6" rx="1"/><rect x="372" y="166" width="5" height="6" rx="1" class="scene-window-off"/><rect x="382" y="166" width="5" height="6" rx="1"/><rect x="382" y="178" width="5" height="6" rx="1"/></g>
+          <rect class="scene-ground" x="0" y="196" width="400" height="24"/>
           <g class="scene-post">
             <rect x="300" y="108" width="4" height="78" rx="2"/>
             <rect class="scene-sign" x="282" y="88" width="40" height="34" rx="9"/>
@@ -118,6 +138,11 @@
               <svg aria-hidden="true"><use href="#i-eye-off"/></svg>
             </button>
           </div>
+          <fieldset id="signup-country" class="country-choice" hidden>
+            <legend>Votre pays</legend>
+            <label><input type="radio" name="country" value="benin"><span>🇧🇯 Bénin</span></label>
+            <label><input type="radio" name="country" value="togo"><span>🇹🇬 Togo</span></label>
+          </fieldset>
           <button id="auth-submit" class="button button-primary button-gradient full" type="submit">Se connecter</button>
           <p id="auth-message" class="form-message" aria-live="polite"></p>
         </form>
@@ -129,27 +154,12 @@
       <section id="customer-view">
         <nav id="customer-nav" class="customer-nav" aria-label="Navigation principale">
           <span class="nav-indicator" aria-hidden="true"></span>
-          <button class="nav-link" type="button" data-page-link="home"><svg class="nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span>Accueil</span></button>
-          <button class="nav-link" type="button" data-page-link="order"><svg class="nav-icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Commander</span></button>
-          <button class="nav-link" type="button" data-page-link="orders"><svg class="nav-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="label-long">Mes commandes</span><span class="label-short">Commandes</span></button>
-          <button class="nav-link" type="button" data-page-link="faq"><svg class="nav-icon" aria-hidden="true"><use href="#i-help"/></svg><span>Aide</span></button>
+          <button class="nav-link" type="button" data-page-link="home" title="Accueil"><svg class="nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span>Accueil</span></button>
+          <button class="nav-link" type="button" data-page-link="order" title="Commander"><svg class="nav-icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Commander</span></button>
+          <button class="nav-link" type="button" data-page-link="orders" title="Mes commandes"><svg class="nav-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="label-long">Mes commandes</span><span class="label-short">Commandes</span></button>
+          <button class="nav-link" type="button" data-page-link="faq" title="Aide"><svg class="nav-icon" aria-hidden="true"><use href="#i-help"/></svg><span>Aide</span></button>
+          <button id="nav-collapse" class="nav-collapse" type="button" aria-expanded="true" title="Réduire le menu"><svg class="nav-icon" aria-hidden="true"><use href="#i-back"/></svg><span>Réduire le menu</span></button>
         </nav>
-
-        <section id="customer-page-confirmation" class="confirmation-page" aria-live="polite" hidden>
-          <div class="confirmation-card">
-            <span class="confirmation-icon" aria-hidden="true">✓</span>
-            <p class="eyebrow">DEMANDE ENREGISTRÉE</p>
-            <h1>Votre colis est bien enregistré</h1>
-            <p class="confirmation-copy">Nous préparons votre panier au montant exact et vous l'envoyons sur WhatsApp. Envoyez-nous la référence ci-dessous pour accélérer le traitement.</p>
-            <div class="confirmation-reference"><span>Référence de votre commande</span><strong id="confirmation-reference"></strong></div>
-            <div id="confirmation-summary" class="confirmation-summary"></div>
-            <a id="send-order-whatsapp" class="button button-primary full confirmation-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Envoyer la référence par WhatsApp</a>
-            <div class="confirmation-actions">
-              <button class="button button-outline" type="button" data-page-link="orders">Voir mes commandes</button>
-              <button class="button button-outline" type="button" data-page-link="order">Créer une autre commande</button>
-            </div>
-          </div>
-        </section>
 
         <section id="customer-page-home" class="customer-page">
           <div class="home-hero">
@@ -157,7 +167,20 @@
             <h1>Bonjour <span id="welcome-name"></span>,<br>que souhaitez-vous faire ?</h1>
             <p class="home-copy">Collez les liens de vos articles ou de votre panier : nous achetons pour vous en Europe et vous livrons au Bénin ou au Togo.</p>
             <button class="button button-primary home-cta" type="button" data-page-link="order">＋ Envoyer mes liens</button>
-            <span class="hero-orbit" aria-hidden="true"><svg class="hero-plane"><use href="#i-plane"/></svg></span>
+            <svg class="hero-scene" viewBox="0 0 600 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<circle class="hs-sun" cx="520" cy="46" r="24"/>
+<g class="hs-cloud hs-cloud-a"><ellipse cx="120" cy="40" rx="30" ry="10"/><ellipse cx="136" cy="33" rx="17" ry="11"/></g>
+<g class="hs-cloud hs-cloud-b"><ellipse cx="420" cy="40" rx="24" ry="8"/><ellipse cx="432" cy="34" rx="13" ry="9"/></g>
+<path class="hs-route" d="M-20 120 C 140 100, 320 30, 640 40"/>
+<g class="hs-back"><rect x="0" y="110" width="46" height="90"/><rect x="44" y="86" width="34" height="114"/><rect x="76" y="120" width="52" height="80"/><rect x="126" y="70" width="30" height="130"/><rect x="154" y="104" width="58" height="96"/><rect x="300" y="96" width="40" height="104"/><rect x="338" y="124" width="34" height="76"/><rect x="460" y="92" width="44" height="108"/><rect x="502" y="116" width="36" height="84"/><rect x="536" y="100" width="64" height="100"/><rect x="139" y="52" width="3" height="18"/></g>
+<g class="hs-hotel"><rect x="372" y="46" width="74" height="154" rx="3"/><rect class="hs-door" x="398" y="178" width="22" height="22" rx="2"/></g>
+<g class="hs-hotel hs-hotel-b"><rect x="196" y="64" width="48" height="136" rx="3"/></g>
+<g class="hs-front"><rect x="0" y="140" width="58" height="65" rx="2"/><rect x="56" y="124" width="40" height="81" rx="2"/><rect x="150" y="132" width="52" height="73" rx="2"/><rect x="240" y="150" width="46" height="55" rx="2"/><rect x="288" y="128" width="56" height="77" rx="2"/><rect x="470" y="136" width="48" height="69" rx="2"/><rect x="516" y="150" width="40" height="55" rx="2"/><rect x="554" y="130" width="46" height="75" rx="2"/></g>
+<g class="hs-windows"><rect x="6" y="148" width="5" height="6" rx="1"/><rect x="16" y="148" width="5" height="6" rx="1"/><rect x="26" y="148" width="5" height="6" rx="1"/><rect x="36" y="148" width="5" height="6" rx="1"/><rect x="46" y="148" width="5" height="6" rx="1" class="off"/><rect x="16" y="160" width="5" height="6" rx="1"/><rect x="26" y="160" width="5" height="6" rx="1"/><rect x="36" y="160" width="5" height="6" rx="1"/><rect x="46" y="160" width="5" height="6" rx="1" class="off"/><rect x="6" y="172" width="5" height="6" rx="1"/><rect x="26" y="172" width="5" height="6" rx="1"/><rect x="36" y="172" width="5" height="6" rx="1"/><rect x="46" y="172" width="5" height="6" rx="1" class="off"/><rect x="6" y="184" width="5" height="6" rx="1"/><rect x="16" y="184" width="5" height="6" rx="1"/><rect x="36" y="184" width="5" height="6" rx="1"/><rect x="46" y="184" width="5" height="6" rx="1" class="off"/><rect x="62" y="132" width="5" height="6" rx="1"/><rect x="72" y="132" width="5" height="6" rx="1"/><rect x="82" y="132" width="5" height="6" rx="1"/><rect x="72" y="144" width="5" height="6" rx="1" class="off"/><rect x="82" y="144" width="5" height="6" rx="1"/><rect x="62" y="156" width="5" height="6" rx="1"/><rect x="72" y="156" width="5" height="6" rx="1"/><rect x="82" y="156" width="5" height="6" rx="1"/><rect x="72" y="168" width="5" height="6" rx="1"/><rect x="82" y="168" width="5" height="6" rx="1"/><rect x="62" y="180" width="5" height="6" rx="1"/><rect x="72" y="180" width="5" height="6" rx="1"/><rect x="82" y="180" width="5" height="6" rx="1" class="off"/><rect x="166" y="140" width="5" height="6" rx="1"/><rect x="176" y="140" width="5" height="6" rx="1"/><rect x="186" y="140" width="5" height="6" rx="1"/><rect x="156" y="152" width="5" height="6" rx="1" class="off"/><rect x="166" y="152" width="5" height="6" rx="1"/><rect x="186" y="152" width="5" height="6" rx="1"/><rect x="156" y="164" width="5" height="6" rx="1"/><rect x="166" y="164" width="5" height="6" rx="1" class="off"/><rect x="176" y="164" width="5" height="6" rx="1"/><rect x="186" y="164" width="5" height="6" rx="1"/><rect x="166" y="176" width="5" height="6" rx="1"/><rect x="176" y="176" width="5" height="6" rx="1" class="off"/><rect x="186" y="176" width="5" height="6" rx="1"/><rect x="156" y="188" width="5" height="6" rx="1"/><rect x="166" y="188" width="5" height="6" rx="1"/><rect x="186" y="188" width="5" height="6" rx="1" class="off"/><rect x="246" y="158" width="5" height="6" rx="1"/><rect x="256" y="158" width="5" height="6" rx="1"/><rect x="266" y="158" width="5" height="6" rx="1"/><rect x="276" y="158" width="5" height="6" rx="1"/><rect x="256" y="170" width="5" height="6" rx="1"/><rect x="266" y="170" width="5" height="6" rx="1"/><rect x="276" y="170" width="5" height="6" rx="1"/><rect x="246" y="182" width="5" height="6" rx="1"/><rect x="256" y="182" width="5" height="6" rx="1" class="off"/><rect x="276" y="182" width="5" height="6" rx="1"/><rect x="294" y="136" width="5" height="6" rx="1"/><rect x="304" y="136" width="5" height="6" rx="1"/><rect x="314" y="136" width="5" height="6" rx="1" class="off"/><rect x="324" y="136" width="5" height="6" rx="1"/><rect x="294" y="148" width="5" height="6" rx="1"/><rect x="304" y="148" width="5" height="6" rx="1"/><rect x="314" y="148" width="5" height="6" rx="1" class="off"/><rect x="324" y="148" width="5" height="6" rx="1"/><rect x="334" y="148" width="5" height="6" rx="1"/><rect x="304" y="160" width="5" height="6" rx="1"/><rect x="314" y="160" width="5" height="6" rx="1" class="off"/><rect x="324" y="160" width="5" height="6" rx="1"/><rect x="334" y="160" width="5" height="6" rx="1"/><rect x="294" y="172" width="5" height="6" rx="1"/><rect x="314" y="172" width="5" height="6" rx="1" class="off"/><rect x="324" y="172" width="5" height="6" rx="1"/><rect x="334" y="172" width="5" height="6" rx="1"/><rect x="294" y="184" width="5" height="6" rx="1"/><rect x="304" y="184" width="5" height="6" rx="1"/><rect x="324" y="184" width="5" height="6" rx="1"/><rect x="334" y="184" width="5" height="6" rx="1"/><rect x="476" y="144" width="5" height="6" rx="1"/><rect x="486" y="144" width="5" height="6" rx="1"/><rect x="496" y="144" width="5" height="6" rx="1" class="off"/><rect x="476" y="156" width="5" height="6" rx="1"/><rect x="486" y="156" width="5" height="6" rx="1"/><rect x="496" y="156" width="5" height="6" rx="1"/><rect x="506" y="156" width="5" height="6" rx="1" class="off"/><rect x="476" y="168" width="5" height="6" rx="1"/><rect x="496" y="168" width="5" height="6" rx="1"/><rect x="506" y="168" width="5" height="6" rx="1"/><rect x="476" y="180" width="5" height="6" rx="1" class="off"/><rect x="486" y="180" width="5" height="6" rx="1"/><rect x="496" y="180" width="5" height="6" rx="1"/><rect x="522" y="158" width="5" height="6" rx="1"/><rect x="532" y="158" width="5" height="6" rx="1" class="off"/><rect x="542" y="158" width="5" height="6" rx="1"/><rect x="522" y="170" width="5" height="6" rx="1"/><rect x="532" y="170" width="5" height="6" rx="1"/><rect x="522" y="182" width="5" height="6" rx="1" class="off"/><rect x="532" y="182" width="5" height="6" rx="1"/><rect x="542" y="182" width="5" height="6" rx="1"/><rect x="560" y="138" width="5" height="6" rx="1"/><rect x="570" y="138" width="5" height="6" rx="1"/><rect x="590" y="138" width="5" height="6" rx="1"/><rect x="560" y="150" width="5" height="6" rx="1"/><rect x="570" y="150" width="5" height="6" rx="1"/><rect x="580" y="150" width="5" height="6" rx="1"/><rect x="590" y="150" width="5" height="6" rx="1" class="off"/><rect x="570" y="162" width="5" height="6" rx="1"/><rect x="580" y="162" width="5" height="6" rx="1"/><rect x="590" y="162" width="5" height="6" rx="1"/><rect x="560" y="174" width="5" height="6" rx="1" class="off"/><rect x="570" y="174" width="5" height="6" rx="1"/><rect x="590" y="174" width="5" height="6" rx="1"/><rect x="560" y="186" width="5" height="6" rx="1"/><rect x="570" y="186" width="5" height="6" rx="1" class="off"/><rect x="580" y="186" width="5" height="6" rx="1"/><rect x="590" y="186" width="5" height="6" rx="1"/><rect x="387" y="60" width="5" height="6" rx="1"/><rect x="396" y="60" width="5" height="6" rx="1" class="off"/><rect x="405" y="60" width="5" height="6" rx="1"/><rect x="414" y="60" width="5" height="6" rx="1"/><rect x="423" y="60" width="5" height="6" rx="1"/><rect x="378" y="71" width="5" height="6" rx="1" class="off"/><rect x="387" y="71" width="5" height="6" rx="1"/><rect x="396" y="71" width="5" height="6" rx="1"/><rect x="405" y="71" width="5" height="6" rx="1"/><rect x="414" y="71" width="5" height="6" rx="1"/><rect x="432" y="71" width="5" height="6" rx="1"/><rect x="378" y="82" width="5" height="6" rx="1"/><rect x="387" y="82" width="5" height="6" rx="1"/><rect x="396" y="82" width="5" height="6" rx="1"/><rect x="405" y="82" width="5" height="6" rx="1" class="off"/><rect x="423" y="82" width="5" height="6" rx="1"/><rect x="432" y="82" width="5" height="6" rx="1"/><rect x="378" y="93" width="5" height="6" rx="1"/><rect x="387" y="93" width="5" height="6" rx="1" class="off"/><rect x="396" y="93" width="5" height="6" rx="1"/><rect x="414" y="93" width="5" height="6" rx="1"/><rect x="423" y="93" width="5" height="6" rx="1"/><rect x="432" y="93" width="5" height="6" rx="1" class="off"/><rect x="378" y="104" width="5" height="6" rx="1"/><rect x="387" y="104" width="5" height="6" rx="1"/><rect x="405" y="104" width="5" height="6" rx="1"/><rect x="414" y="104" width="5" height="6" rx="1" class="off"/><rect x="423" y="104" width="5" height="6" rx="1"/><rect x="432" y="104" width="5" height="6" rx="1"/><rect x="378" y="115" width="5" height="6" rx="1"/><rect x="396" y="115" width="5" height="6" rx="1" class="off"/><rect x="405" y="115" width="5" height="6" rx="1"/><rect x="414" y="115" width="5" height="6" rx="1"/><rect x="423" y="115" width="5" height="6" rx="1"/><rect x="432" y="115" width="5" height="6" rx="1"/><rect x="387" y="126" width="5" height="6" rx="1"/><rect x="396" y="126" width="5" height="6" rx="1"/><rect x="405" y="126" width="5" height="6" rx="1"/><rect x="414" y="126" width="5" height="6" rx="1"/><rect x="423" y="126" width="5" height="6" rx="1" class="off"/><rect x="378" y="137" width="5" height="6" rx="1"/><rect x="387" y="137" width="5" height="6" rx="1"/><rect x="396" y="137" width="5" height="6" rx="1"/><rect x="405" y="137" width="5" height="6" rx="1" class="off"/><rect x="414" y="137" width="5" height="6" rx="1"/><rect x="432" y="137" width="5" height="6" rx="1"/><rect x="378" y="148" width="5" height="6" rx="1"/><rect x="387" y="148" width="5" height="6" rx="1" class="off"/><rect x="396" y="148" width="5" height="6" rx="1"/><rect x="405" y="148" width="5" height="6" rx="1"/><rect x="423" y="148" width="5" height="6" rx="1"/><rect x="432" y="148" width="5" height="6" rx="1" class="off"/><rect x="378" y="159" width="5" height="6" rx="1"/><rect x="387" y="159" width="5" height="6" rx="1"/><rect x="396" y="159" width="5" height="6" rx="1"/><rect x="414" y="159" width="5" height="6" rx="1" class="off"/><rect x="423" y="159" width="5" height="6" rx="1"/><rect x="432" y="159" width="5" height="6" rx="1"/><rect x="378" y="170" width="5" height="6" rx="1"/><rect x="387" y="170" width="5" height="6" rx="1"/><rect x="405" y="170" width="5" height="6" rx="1"/><rect x="414" y="170" width="5" height="6" rx="1"/><rect x="423" y="170" width="5" height="6" rx="1"/><rect x="432" y="170" width="5" height="6" rx="1"/><rect x="202" y="78" width="5" height="6" rx="1" class="off"/><rect x="220" y="78" width="5" height="6" rx="1"/><rect x="229" y="78" width="5" height="6" rx="1"/><rect x="202" y="89" width="5" height="6" rx="1"/><rect x="211" y="89" width="5" height="6" rx="1" class="off"/><rect x="220" y="89" width="5" height="6" rx="1"/><rect x="202" y="100" width="5" height="6" rx="1"/><rect x="211" y="100" width="5" height="6" rx="1"/><rect x="220" y="100" width="5" height="6" rx="1" class="off"/><rect x="229" y="100" width="5" height="6" rx="1"/><rect x="202" y="111" width="5" height="6" rx="1"/><rect x="220" y="111" width="5" height="6" rx="1"/><rect x="229" y="111" width="5" height="6" rx="1" class="off"/><rect x="202" y="122" width="5" height="6" rx="1"/><rect x="211" y="122" width="5" height="6" rx="1"/><rect x="220" y="122" width="5" height="6" rx="1"/><rect x="202" y="133" width="5" height="6" rx="1" class="off"/><rect x="211" y="133" width="5" height="6" rx="1"/><rect x="220" y="133" width="5" height="6" rx="1"/><rect x="229" y="133" width="5" height="6" rx="1"/><rect x="202" y="144" width="5" height="6" rx="1"/><rect x="220" y="144" width="5" height="6" rx="1"/><rect x="229" y="144" width="5" height="6" rx="1"/><rect x="202" y="155" width="5" height="6" rx="1"/><rect x="211" y="155" width="5" height="6" rx="1"/><rect x="220" y="155" width="5" height="6" rx="1" class="off"/><rect x="202" y="166" width="5" height="6" rx="1"/><rect x="211" y="166" width="5" height="6" rx="1"/><rect x="220" y="166" width="5" height="6" rx="1"/><rect x="229" y="166" width="5" height="6" rx="1" class="off"/><rect x="202" y="177" width="5" height="6" rx="1"/><rect x="220" y="177" width="5" height="6" rx="1"/><rect x="229" y="177" width="5" height="6" rx="1"/><rect x="202" y="188" width="5" height="6" rx="1" class="off"/><rect x="211" y="188" width="5" height="6" rx="1"/><rect x="220" y="188" width="5" height="6" rx="1"/></g>
+<g class="hs-palm"><path class="hs-trunk" d="M118 200 Q 114 169 121 138"/><g class="hs-leaves" transform="translate(121 138)"><path d="M0 0 Q-14 -8 -26 2 Q-12 -2 0 0Z"/><path d="M0 0 Q14 -10 27 0 Q12 -3 0 0Z"/><path d="M0 0 Q-6 -16 -18 -18 Q-6 -10 0 0Z"/><path d="M0 0 Q8 -16 20 -16 Q8 -9 0 0Z"/><path d="M0 0 Q-16 4 -22 14 Q-10 4 0 0Z"/><path d="M0 0 Q16 4 22 14 Q10 4 0 0Z"/></g></g><g class="hs-palm"><path class="hs-trunk" d="M462 200 Q 458 165 465 130"/><g class="hs-leaves" transform="translate(465 130)"><path d="M0 0 Q-14 -8 -26 2 Q-12 -2 0 0Z"/><path d="M0 0 Q14 -10 27 0 Q12 -3 0 0Z"/><path d="M0 0 Q-6 -16 -18 -18 Q-6 -10 0 0Z"/><path d="M0 0 Q8 -16 20 -16 Q8 -9 0 0Z"/><path d="M0 0 Q-16 4 -22 14 Q-10 4 0 0Z"/><path d="M0 0 Q16 4 22 14 Q10 4 0 0Z"/></g></g>
+<rect class="hs-ground" x="0" y="194" width="600" height="6"/>
+<g class="hs-plane"><svg x="-15" y="-15" width="30" height="30"><use href="#i-plane"/></svg><animateMotion dur="11s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".4 0 .6 1" path="M-40 124 C 140 100, 320 30, 660 38"/></g>
+</svg>
           </div>
           <div class="home-cards">
             <button class="home-card" type="button" data-page-link="order">
@@ -209,22 +232,76 @@
             <p class="marketplaces-copy">Choisissez vos articles sur n'importe quelle boutique en ligne, copiez le lien puis revenez ici pour nous l'envoyer.</p>
             <div class="marketplace-grid">
               <a class="marketplace-card" href="https://www.alibaba.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Alibaba dans un nouvel onglet">
-                <span class="marketplace-icon"><img src="/assets/alibaba.png" alt=""></span><span class="marketplace-name">Alibaba</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+                <span class="marketplace-icon" data-initial="A"><img src="/assets/alibaba.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Alibaba</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
               </a>
               <a class="marketplace-card" href="https://www.aliexpress.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir AliExpress dans un nouvel onglet">
-                <span class="marketplace-icon"><img src="/assets/aliexpress.png" alt=""></span><span class="marketplace-name">AliExpress</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+                <span class="marketplace-icon" data-initial="A"><img src="/assets/aliexpress.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">AliExpress</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
               </a>
-              <a class="marketplace-card" href="https://www.amazon.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Amazon dans un nouvel onglet">
-                <span class="marketplace-icon"><img src="/assets/amazon.png" alt=""></span><span class="marketplace-name">Amazon</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              <a class="marketplace-card" href="https://www.amazon.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Amazon dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="A"><img src="/assets/amazon.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Amazon</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
               </a>
               <a class="marketplace-card" href="https://www.temu.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Temu dans un nouvel onglet">
-                <span class="marketplace-icon"><img src="/assets/temu.png" alt=""></span><span class="marketplace-name">Temu</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+                <span class="marketplace-icon" data-initial="T"><img src="/assets/temu.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Temu</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://fr.shein.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Shein dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="S"><img src="https://www.google.com/s2/favicons?domain=shein.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Shein</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.zara.com/fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Zara dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="Z"><img src="https://www.google.com/s2/favicons?domain=zara.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Zara</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.zalando.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Zalando dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="Z"><img src="https://www.google.com/s2/favicons?domain=zalando.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Zalando</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.cdiscount.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Cdiscount dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="C"><img src="https://www.google.com/s2/favicons?domain=cdiscount.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Cdiscount</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.ebay.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir eBay dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="e"><img src="https://www.google.com/s2/favicons?domain=ebay.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">eBay</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.vinted.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Vinted dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="V"><img src="https://www.google.com/s2/favicons?domain=vinted.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Vinted</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www2.hm.com/fr_fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir H&amp;M dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="H"><img src="https://www.google.com/s2/favicons?domain=hm.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">H&amp;M</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.nike.com/fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Nike dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="N"><img src="https://www.google.com/s2/favicons?domain=nike.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Nike</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.decathlon.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Decathlon dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="D"><img src="https://www.google.com/s2/favicons?domain=decathlon.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Decathlon</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.sephora.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Sephora dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="S"><img src="https://www.google.com/s2/favicons?domain=sephora.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Sephora</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.fnac.com/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Fnac dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="F"><img src="https://www.google.com/s2/favicons?domain=fnac.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Fnac</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.ikea.com/fr/fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir IKEA dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="I"><img src="https://www.google.com/s2/favicons?domain=ikea.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">IKEA</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.apple.com/fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Apple dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="A"><img src="https://www.google.com/s2/favicons?domain=apple.com&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Apple</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="marketplace-card" href="https://www.leroymerlin.fr/" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Leroy Merlin dans un nouvel onglet">
+                <span class="marketplace-icon" data-initial="L"><img src="https://www.google.com/s2/favicons?domain=leroymerlin.fr&amp;sz=128" alt="" loading="lazy" referrerpolicy="no-referrer"></span><span class="marketplace-name">Leroy Merlin</span><span class="marketplace-arrow" aria-hidden="true">↗</span>
               </a>
             </div>
           </section>
         </section>
 
         <section id="customer-page-orders" class="customer-page" hidden>
+          <div id="order-success" class="order-success" role="status" hidden>
+            <span class="order-success-icon" aria-hidden="true">✓</span>
+            <div class="order-success-text">
+              <strong>Commande <span id="order-success-reference"></span> enregistrée</strong>
+              <span>Nous préparons votre panier au montant exact et vous l'envoyons sur WhatsApp.</span>
+            </div>
+            <a id="send-order-whatsapp" class="button button-primary order-success-whatsapp" href="#" target="_blank" rel="noopener noreferrer">
+              <span>Contacter mon assistant</span>
+              <small id="assistant-label">Assistant WhatsApp</small>
+            </a>
+            <button id="close-order-success" class="order-success-close" type="button" aria-label="Masquer ce message">×</button>
+          </div>
           <div class="section-heading page-heading">
             <div><p class="eyebrow">VOTRE SUIVI</p><h1>Mes commandes</h1></div>
             <button class="button button-primary" type="button" data-page-link="order">＋ Nouvelle commande</button>
@@ -382,19 +459,37 @@
       </div>
     </div>
   </dialog>
-  <section id="map-modal" class="map-modal" role="dialog" aria-modal="true" aria-label="Carte de livraison" hidden>
-    <div id="delivery-map" class="delivery-map" aria-label="Carte interactive"></div>
-    <button id="locate-on-map" class="button button-primary map-locate" type="button">◎ Me localiser</button>
-    <button id="close-map" class="map-close" type="button" aria-label="Fermer la carte">×</button>
-    <footer class="map-footer">
-      <div class="map-selection">
-        <strong id="map-selection-title">Lien de position</strong>
-        <span id="map-selection-detail">Collez un lien Google Maps ou choisissez un point sur la carte.</span>
+  <section id="map-modal" class="map-modal" role="dialog" aria-modal="true" aria-label="Choisir l'adresse de livraison" hidden>
+    <div class="map-stage">
+      <div id="delivery-map" class="delivery-map" aria-label="Carte interactive : déplacez la carte pour placer le repère"></div>
+      <div class="map-center-pin" aria-hidden="true">
+        <svg class="map-pin"><use href="#i-pin"/></svg>
+        <span class="map-pin-shadow"></span>
       </div>
-      <form id="map-link-form" class="map-link-form">
-        <input id="map-position-link" type="url" aria-label="Lien de la position" autocomplete="url" placeholder="Collez le lien Google Maps">
-        <button id="use-map-link" class="button button-outline" type="submit">Utiliser le lien</button>
-      </form>
+      <div class="map-topbar">
+        <button id="close-map" class="map-round-button" type="button" aria-label="Fermer la carte"><svg aria-hidden="true"><use href="#i-back"/></svg></button>
+        <form id="map-search-form" class="map-search" role="search">
+          <svg class="map-search-icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="map-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="Rechercher un quartier, une rue…" aria-label="Rechercher une adresse">
+        </form>
+        <ul id="map-search-results" class="map-search-results" role="listbox" hidden></ul>
+      </div>
+      <button id="locate-on-map" class="map-round-button map-locate-button" type="button" aria-label="Me localiser"><svg aria-hidden="true"><use href="#i-locate"/></svg></button>
+    </div>
+    <footer class="map-sheet">
+      <span class="sheet-handle" aria-hidden="true"></span>
+      <p class="map-sheet-label">ADRESSE DE LIVRAISON</p>
+      <div class="map-selection" aria-live="polite">
+        <strong id="map-selection-title">Déplacez la carte</strong>
+        <span id="map-selection-detail">Placez le repère sur votre adresse, recherchez-la ou utilisez votre position.</span>
+      </div>
+      <details class="map-link-details">
+        <summary>Ou coller un lien Google Maps</summary>
+        <form id="map-link-form" class="map-link-form">
+          <input id="map-position-link" type="url" aria-label="Lien de la position" autocomplete="url" placeholder="https://maps.app.goo.gl/…">
+          <button id="use-map-link" class="button button-outline" type="submit">Utiliser</button>
+        </form>
+      </details>
       <div class="map-actions">
         <button id="cancel-map" class="button button-outline" type="button">Annuler</button>
         <button id="confirm-map" class="button button-primary" type="button" disabled>Confirmer cette adresse</button>
