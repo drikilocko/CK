@@ -64,8 +64,34 @@ function setAuthMode(signup) {
   $("#login-tab").classList.toggle("active", !signup);
   $("#signup-tab").classList.toggle("active", signup);
   $("#auth-submit").textContent = signup ? "Créer mon compte" : "Se connecter";
+  $("#auth-title").textContent = signup ? "Créer un compte" : "Bon retour";
+  $("#auth-subtitle").textContent = signup
+    ? "Quelques secondes suffisent pour commander et suivre vos colis"
+    : "Vos commandes et vos colis vous attendent";
+  $("#auth-switch").firstChild.textContent = signup ? "Déjà inscrit ? " : "Pas encore de compte ? ";
+  $("#auth-switch-button").textContent = signup ? "Se connecter" : "Créer un compte";
   $("#auth-form [name=password]").autocomplete = signup ? "new-password" : "current-password";
   $("#auth-message").textContent = "";
+  const panel = $(".auth-panel");
+  panel.classList.remove("is-switching");
+  void panel.offsetWidth;
+  panel.classList.add("is-switching");
+}
+
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  document.querySelectorAll("svg").forEach((svg) => svg.pauseAnimations?.());
+}
+
+const preloaderStartedAt = performance.now();
+function hidePreloader() {
+  const preloader = $("#preloader");
+  if (!preloader) return;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const remaining = reducedMotion ? 0 : Math.max(0, 1600 - (performance.now() - preloaderStartedAt));
+  window.setTimeout(() => {
+    preloader.classList.add("is-done");
+    window.setTimeout(() => preloader.remove(), 700);
+  }, remaining);
 }
 
 function addProductRow() {
@@ -581,6 +607,7 @@ function renderOrder(order, isAdmin) {
       <button class="button button-outline" type="submit">${order.hasPaymentProof ? "Remplacer le reçu" : "Envoyer le reçu"}</button>
       <span class="payment-proof-message" aria-live="polite"></span>
     </form>` : "";
+  if (!isAdmin) return renderTicket(order, items, paymentProofForm);
   const controls = isAdmin ? `
     <div class="admin-controls">
       ${order.paymentStatus === "proof_received" ? `
@@ -616,6 +643,93 @@ function renderOrder(order, isAdmin) {
       <div class="order-items">${items}</div>${adminInfo}
     </div>${controls}
   </article>`;
+}
+
+const ticketStatusNames = {
+  demande_recue: "Devis en préparation",
+  devis_envoye: "Paiement attendu",
+  colis_en_commande: "En commande",
+  commande_fournisseur: "Chez le fournisseur",
+  dans_avion: "En vol",
+  arrive: "Arrivé au pays",
+  livre: "Livré"
+};
+
+function renderTicket(order, items, paymentProofForm) {
+  const index = Math.max(0, statusOrder.indexOf(order.status));
+  const progress = Math.round((index / (statusOrder.length - 1)) * 100);
+  const created = new Date(`${order.createdAt.replace(" ", "T")}Z`);
+  const shortDate = created.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
+  const isBenin = order.destination === "benin";
+  const delivered = order.status === "livre";
+  const verified = order.paymentStatus === "verified";
+  const stubLabel = order.quoteTotalFcfa ? (verified ? "PAYÉ" : "À PAYER") : "DEVIS";
+  const stubAmount = order.quoteTotalFcfa ? `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>` : "À venir";
+  const stubNote = order.quoteTotalFcfa
+    ? (paymentStatusNames[order.paymentStatus] || "")
+    : "Envoyé sur WhatsApp";
+  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}" data-group="${delivered ? "delivered" : "active"}">
+    <div class="ticket-body">
+      <div class="ticket-main">
+        <header class="ticket-head">
+          <span class="ticket-ref">Réf. ${escapeHtml(order.reference)}</span>
+          <span class="ticket-brand"><svg aria-hidden="true"><use href="#i-plane"/></svg> Colis CK</span>
+        </header>
+        <div class="ticket-content">
+        <div class="ticket-route">
+          <div class="route-point"><small>DÉPART</small><strong>WEB</strong><span>Boutique en ligne</span></div>
+          <div class="route-track" style="--progress:${progress}%">
+            <span class="route-status">${ticketStatusNames[order.status] || ""}</span>
+            <span class="route-line"><span class="route-fill"></span><svg class="route-plane" aria-hidden="true"><use href="#i-plane"/></svg></span>
+            <span class="route-step">Étape ${index + 1}/${statusOrder.length}</span>
+          </div>
+          <div class="route-point route-end"><small>ARRIVÉE</small><strong>${isBenin ? "BJ" : "TG"}</strong><span>${isBenin ? "Bénin" : "Togo"}</span></div>
+        </div>
+        <dl class="ticket-meta">
+          <div><dt>Statut</dt><dd><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></dd></div>
+          <div><dt>Articles</dt><dd>${order.items.length}</dd></div>
+          <div><dt>Destinataire</dt><dd>${escapeHtml(order.customerName || "—")}</dd></div>
+        </dl>
+        <div class="order-items">${items}</div>
+        <div class="order-address">${escapeHtml(order.location)} · ${escapeHtml(order.phone)}</div>
+        </div>
+      </div>
+      <div class="ticket-stub">
+        <span class="ticket-date">${escapeHtml(shortDate)}</span>
+        <small>${stubLabel}</small>
+        <strong>${stubAmount}</strong>
+        ${stubNote ? `<span>${escapeHtml(stubNote)}</span>` : ""}
+        <span class="ticket-barcode" aria-hidden="true"></span>
+      </div>
+    </div>
+    ${paymentProofForm ? `<div class="ticket-foot">${paymentProofForm}</div>` : ""}
+  </article>`;
+}
+
+let customerOrdersCache = [];
+let customerOrderFilter = "all";
+let lastCustomerOrdersHtml = "";
+
+function renderCustomerOrders() {
+  const orders = customerOrdersCache;
+  const delivered = orders.filter((order) => order.status === "livre").length;
+  $("#count-all").textContent = String(orders.length);
+  $("#count-active").textContent = String(orders.length - delivered);
+  $("#count-delivered").textContent = String(delivered);
+  const visible = orders.filter((order) => {
+    if (customerOrderFilter === "active") return order.status !== "livre";
+    if (customerOrderFilter === "delivered") return order.status === "livre";
+    return true;
+  });
+  const emptyMessage = orders.length
+    ? "Aucune commande dans cette catégorie."
+    : "Aucune commande pour le moment.";
+  const html = visible.length
+    ? visible.map((order) => renderOrder(order, false)).join("")
+    : `<div class="empty-state">${emptyMessage}</div>`;
+  if (html === lastCustomerOrdersHtml) return;
+  lastCustomerOrdersHtml = html;
+  $("#orders-list").innerHTML = html;
 }
 
 function renderAdminOrders() {
@@ -679,9 +793,8 @@ async function loadOrders() {
       renderAdminOrders();
     } else {
       $("#home-order-count").textContent = String(orders.length);
-      target.innerHTML = orders.length
-        ? orders.map((order) => renderOrder(order, false)).join("")
-        : '<div class="empty-state">Aucune commande pour le moment.</div>';
+      customerOrdersCache = orders;
+      renderCustomerOrders();
     }
   } catch (error) {
     console.error(error);
@@ -703,6 +816,8 @@ function showCustomerPage(page, updateHash = true) {
       else button.removeAttribute("aria-current");
     }
   });
+  const navLinks = [...document.querySelectorAll("#customer-nav .nav-link")];
+  $("#customer-nav").style.setProperty("--active-index", String(Math.max(0, navLinks.findIndex((link) => link.dataset.pageLink === page))));
   if (updateHash && window.location.hash !== customerPageHashes[page]) {
     window.location.hash = customerPageHashes[page];
   }
@@ -731,6 +846,27 @@ function showApp(user) {
 
 $("#login-tab").addEventListener("click", () => setAuthMode(false));
 $("#signup-tab").addEventListener("click", () => setAuthMode(true));
+$("#auth-switch-button").addEventListener("click", () => setAuthMode(!signupMode));
+$("#toggle-password").addEventListener("click", (event) => {
+  const button = event.currentTarget;
+  const input = $("#auth-password");
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  button.setAttribute("aria-pressed", String(show));
+  button.setAttribute("aria-label", show ? "Masquer le mot de passe" : "Afficher le mot de passe");
+  button.querySelector("use").setAttribute("href", show ? "#i-eye" : "#i-eye-off");
+});
+document.querySelector(".order-filters").addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-order-filter]");
+  if (!chip) return;
+  customerOrderFilter = chip.dataset.orderFilter;
+  document.querySelectorAll("[data-order-filter]").forEach((button) => {
+    const active = button === chip;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  renderCustomerOrders();
+});
 $("#contact-menu-toggle").addEventListener("click", () => {
   const menu = $("#contact-menu");
   const isOpening = menu.hidden;
@@ -751,8 +887,11 @@ $("#contact-menu").addEventListener("keydown", (event) => {
 $("#auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = $("#auth-message");
+  const submit = $("#auth-submit");
   message.textContent = "";
   const form = new FormData(event.currentTarget);
+  submit.disabled = true;
+  submit.classList.add("is-loading");
   try {
     const data = await api(signupMode ? "/api/signup" : "/api/login", {
       method: "POST",
@@ -765,6 +904,9 @@ $("#auth-form").addEventListener("submit", async (event) => {
     showApp(data.user);
   } catch (error) {
     message.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+    submit.classList.remove("is-loading");
   }
 });
 
@@ -776,6 +918,9 @@ $("#logout-button").addEventListener("click", async () => {
   $("#app-view").hidden = true;
   $("#account-bar").hidden = true;
   $("#auth-form").reset();
+  customerOrdersCache = [];
+  lastCustomerOrdersHtml = "";
+  $("#orders-list").innerHTML = "";
   history.replaceState(null, "", window.location.pathname + window.location.search);
 });
 
@@ -1021,9 +1166,13 @@ if (isAdminRoute) {
   $("#auth-view .intro-copy").textContent = "Connectez-vous pour gérer les commandes et mettre à jour leur suivi.";
   $("#auth-view .steps-note").hidden = true;
   $("#signup-tab").hidden = true;
+  $("#auth-switch").hidden = true;
+  $(".auth-panel .tabs").hidden = true;
+  $("#auth-title").textContent = "Espace admin";
+  $("#auth-subtitle").textContent = "Accès réservé à l'équipe CK";
   $("#auth-submit").textContent = "Accéder à l'administration";
 }
 
 api("/api/me").then(({ user }) => {
   if (!isAdminRoute || user.role === "admin") showApp(user);
-}).catch(() => {});
+}).catch(() => {}).finally(hidePreloader);
