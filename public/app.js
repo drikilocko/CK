@@ -954,8 +954,20 @@ function renderAdminCard(order) {
   const statusLabel = order.cancelled
     ? '<span class="status" data-status="annule">Annulée</span>'
     : `<span class="status" data-status="${order.status}">${statusNames[order.status]}</span>`;
-  return `<article class="order-card admin-card ${adminCardState(order)}" data-order-id="${order.id}">
-    <div>
+  const open = String(openAdminSheetId) === String(order.id);
+  const articleCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const amount = order.quoteTotalFcfa ? formatFcfa(order.quoteTotalFcfa) : "Montant à envoyer";
+  // Sur mobile : carte réduite ; un appui ouvre le détail dans un panneau qui monte du bas de l'écran.
+  return `<article class="order-card admin-card ${adminCardState(order)}${open ? " is-open" : ""}" data-order-id="${order.id}">
+    <button class="admin-summary" type="button" data-open-sheet="${order.id}" aria-label="Ouvrir la commande ${escapeHtml(order.reference)}">
+      <span class="admin-summary-top"><b>Réf. ${escapeHtml(order.reference)}</b>${statusLabel}</span>
+      <span class="admin-summary-line">${escapeHtml(order.customerName)} · ${articleCount} article(s) · ${order.destination === "benin" ? "Bénin" : "Togo"}</span>
+      <span class="admin-summary-bottom"><strong>${escapeHtml(amount)}</strong><i aria-hidden="true">›</i></span>
+    </button>
+    <div class="admin-sheet-backdrop" data-close-sheet></div>
+    <div class="admin-card-body">
+    <div class="admin-sheet-head"><span class="admin-sheet-handle" aria-hidden="true"></span><strong>Réf. ${escapeHtml(order.reference)}</strong><button type="button" class="admin-sheet-close" data-close-sheet aria-label="Fermer">✕</button></div>
+    <div class="admin-card-main">
       <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span>${date ? `<span class="order-date">${escapeHtml(date)}</span>` : ""}<span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"} · ${shippingModeNames[order.shippingMode]}</span>${statusLabel}</div>
       ${adminItemsTable(order)}
       <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
@@ -965,6 +977,7 @@ function renderAdminCard(order) {
       ${order.customerMessage ? `<div class="customer-message"><strong>Message affiché au client</strong>${escapeHtml(order.customerMessage)}</div>` : ""}
       <div class="cost-blocks">${quoteBreakdown(order)}${shippingBreakdown(order)}</div>
     </div>${adminControls(order)}
+    </div>
   </article>`;
 }
 
@@ -1133,6 +1146,17 @@ function renderAdminOrders() {
   if (html === lastAdminOrdersHtml || isEditingInside("#admin-orders")) return;
   lastAdminOrdersHtml = html;
   $("#admin-orders").innerHTML = html;
+  setAdminSheet(document.querySelector("#admin-orders .admin-card.is-open") ? openAdminSheetId : null);
+}
+
+let openAdminSheetId = null;
+
+function setAdminSheet(orderId) {
+  openAdminSheetId = orderId;
+  document.querySelectorAll("#admin-orders .admin-card").forEach((card) => {
+    card.classList.toggle("is-open", orderId !== null && card.dataset.orderId === String(orderId));
+  });
+  document.body.classList.toggle("sheet-open", orderId !== null);
 }
 
 let lastAdminOrdersHtml = "";
@@ -1910,4 +1934,16 @@ api("/api/me").then(({ user }) => {
 
 $("#whatsapp-fallback").addEventListener("click", (event) => {
   if (event.target.closest("a, button")) $("#whatsapp-fallback").hidden = true;
+});
+
+$("#admin-orders").addEventListener("click", (event) => {
+  const opener = event.target.closest("[data-open-sheet]");
+  if (opener) {
+    setAdminSheet(opener.dataset.openSheet);
+    return;
+  }
+  if (event.target.closest("[data-close-sheet]")) setAdminSheet(null);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && openAdminSheetId !== null && !$("#admin-edit").open) setAdminSheet(null);
 });

@@ -1438,3 +1438,34 @@ input[type="radio"], input[type="checkbox"] { width: auto; }
 .whatsapp-fallback { position: fixed; z-index: 90; right: 16px; bottom: 16px; left: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; max-width: 520px; margin: 0 auto; padding: 12px 14px; border-radius: 6px 18px 6px 18px; background: var(--night); color: #fff; font-size: 13px; box-shadow: 0 18px 50px #21114d66; }
 .whatsapp-fallback[hidden] { display: none; }
 .whatsapp-fallback .text-button { border: 0; background: none; color: #fff; font-size: 16px; cursor: pointer; }
+
+/* ---- Admin mobile : carte réduite, détail dans un panneau qui monte du bas ---- */
+.admin-summary, .admin-sheet-backdrop, .admin-sheet-head { display: none; }
+.admin-card-body { display: contents; }
+@media (max-width: 760px) {
+  .order-card.admin-card { display: block; padding: 0; }
+  .admin-summary { display: grid; width: 100%; gap: 6px; padding: 14px 16px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .admin-summary-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+  .admin-summary-top b { font-size: 14px; }
+  .admin-summary-top .status { font-size: 10px; }
+  .admin-summary-line { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-summary-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .admin-summary-bottom strong { color: #4520bb; font-size: 14px; }
+  .admin-summary-bottom i { color: #4520bb; font-size: 22px; font-style: normal; line-height: 1; }
+  .admin-card-body { display: none; }
+  .orders-list > .admin-card.is-open { animation: none; }
+  .admin-card.is-open .admin-sheet-backdrop { position: fixed; z-index: 120; inset: 0; display: block; background: #21114d80; animation: sheet-fade .25s ease-out; }
+  .admin-card.is-open .admin-card-body { position: fixed; z-index: 121; right: 0; bottom: 0; left: 0; display: grid; gap: 14px; max-height: 90dvh; margin: 0; padding: 0 16px calc(20px + env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; border-radius: 24px 24px 0 0; background: #fff; box-shadow: 0 -18px 50px #21114d40; animation: sheet-up .35s var(--ease-out); }
+  .admin-card.state-sent.is-open .admin-card-body { background: #eaf3ff; }
+  .admin-card.state-delivered.is-open .admin-card-body { background: #e3f6eb; }
+  .admin-card.is-cancelled.is-open .admin-card-body { background: #fff0ee; }
+  .admin-card.state-paid.is-open .admin-card-body { border-top: 3px solid #2fa36b; }
+  .admin-sheet-head { position: sticky; z-index: 2; top: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px; margin: 0 -16px; padding: 10px 16px 10px; background: inherit; }
+  .admin-sheet-handle { grid-column: 1 / -1; justify-self: center; width: 44px; height: 5px; border-radius: 99px; background: #d4cbef; }
+  .admin-sheet-head strong { font-size: 15px; }
+  .admin-sheet-close { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f1edff; color: #4520bb; font-size: 14px; cursor: pointer; }
+  body.sheet-open { overflow: hidden; }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 760px) { .admin-card.is-open .order-top .order-id { display: none; } }
