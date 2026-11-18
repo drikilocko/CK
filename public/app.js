@@ -230,6 +230,7 @@ function setCheckoutStep(step) {
     indicator.classList.toggle("complete", number < step);
   });
   $("#checkout-title").textContent = ["", "1. Vos liens", "2. Expédition et livraison", "3. Vérification"][step];
+  $("#next-step").textContent = step === 1 ? "Continuer vers la livraison →" : "Vérification →";
   $("#previous-step").hidden = step === 1;
   $("#next-step").hidden = step === 3;
   $("#submit-order").hidden = step !== 3;

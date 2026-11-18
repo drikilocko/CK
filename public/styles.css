@@ -718,15 +718,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   stroke-linecap: round;
   stroke-dasharray: 2.2 2.2;
   stroke-dashoffset: 0;
-  mask: none;
   filter: drop-shadow(0 0 6px #8f6bffaa);
-  clip-path: inset(0 100% 0 0);
-  animation: arc-reveal 1.6s cubic-bezier(.45, 0, .2, 1) .35s forwards;
 }
 .preloader-origin { fill: #a98bff; opacity: 0; animation: dot-pop .4s var(--ease-out) .2s forwards; }
-.preloader-landing { fill: var(--lime); opacity: 0; transform-box: fill-box; transform-origin: center; animation: landing-pulse .9s var(--ease-out) 1.9s forwards; }
+.preloader-landing { fill: var(--lime); filter: drop-shadow(0 0 6px #b6ef37); }
 .preloader-plane { color: #fff; filter: drop-shadow(0 0 8px #ffffffaa); }
-.preloader-plane { opacity: 0; animation: fade-plane .25s ease .35s forwards; }
 .preloader-tagline {
   margin: 14px 0 0;
   color: #c9bdf5;
@@ -1331,6 +1327,18 @@ body.auth-screen .auth-panel { margin: 0; }
   .contact-menu > a { padding: 12px; }
   .contact-menu strong { font-size: 15px; }
   .contact-menu small { font-size: 13px; color: #4a3f6b; }
+}
+
+/* Les fieldset refusent par défaut de rétrécir sous leur contenu : ils faisaient déborder le formulaire */
+fieldset { min-width: 0; }
+
+@media (max-width: 760px) {
+  /* 16 px minimum : l'iPhone ne zoome plus automatiquement en touchant un champ */
+  input, select, textarea { font-size: 16px !important; }
+  .checkout-navigation { display: flex; flex-wrap: wrap; gap: 10px; }
+  .checkout-navigation #previous-step { flex: 0 0 auto; }
+  .checkout-navigation #next-step, .checkout-navigation #submit-order { flex: 1 1 0; min-width: 0; padding: 0 12px; }
+  .shipping-mode-card span { font-size: 11.5px; }
 }
 
 /* Choix du pays à l'inscription */
