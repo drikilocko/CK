@@ -1424,3 +1424,17 @@ input[type="radio"], input[type="checkbox"] { width: auto; }
 }
 .admin-edit .edit-item-head .edit-available { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; }
 .admin-edit .edit-available input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: #5229dd; }
+
+/* ---- Couleur des cartes admin selon l'étape ---- */
+.admin-card { border: 2px solid transparent; transition: background .3s, border-color .3s; }
+.admin-card.state-sent { border-color: #9cc3f5; background: #eaf3ff; }
+.admin-card.state-paid { border-color: #2fa36b; background: #fff; }
+.admin-card.state-delivered { border-color: #2fa36b; background: #e3f6eb; }
+.admin-card.is-cancelled { border-color: #f0a9a1; background: #fff0ee; }
+.ticket.is-cancelled { opacity: .78; }
+.order-card.admin-card.is-cancelled { opacity: 1; }
+.button.button-whatsapp { grid-column: 1 / -1; border-color: #25d366; background: #25d366; color: #fff; }
+.button.button-whatsapp:hover { background: #1fb857; }
+.whatsapp-fallback { position: fixed; z-index: 90; right: 16px; bottom: 16px; left: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; max-width: 520px; margin: 0 auto; padding: 12px 14px; border-radius: 6px 18px 6px 18px; background: var(--night); color: #fff; font-size: 13px; box-shadow: 0 18px 50px #21114d66; }
+.whatsapp-fallback[hidden] { display: none; }
+.whatsapp-fallback .text-button { border: 0; background: none; color: #fff; font-size: 16px; cursor: pointer; }

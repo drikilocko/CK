@@ -875,15 +875,16 @@ app.patch("/api/orders/:id/payment-status", requireAuth, requireAdmin, async (re
       method: "PATCH",
       query: {
         id: `eq.${req.params.id}`,
-        payment_status: "eq.proof_received",
-        payment_proof_path: "not.is.null",
+        // L'admin confirme lui-même la réception du MoMo, avec ou sans reçu envoyé par le client.
+        payment_status: "in.(awaiting_proof,proof_received)",
+        quote_total_fcfa: "not.is.null",
         cancelled_at: "is.null",
         select: "id"
       },
       body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), customer_message: "", updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
-    if (!updated.length) return res.status(409).json({ error: "Aucune preuve en attente pour cette commande." });
+    if (!updated.length) return res.status(409).json({ error: "Envoyez d'abord le montant du panier au client." });
     res.json({ ok: true });
   } catch (error) {
     next(error);

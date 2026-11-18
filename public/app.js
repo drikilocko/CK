@@ -782,6 +782,57 @@ function shippingProofLink(order) {
   return `<a class="button button-primary shipping-whatsapp" href="https://wa.me/${whatsappNumberFor(userCountry())}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Envoyer le reçu à mon assistant</a>`;
 }
 
+// Lien direct vers la commande, ajouté à chaque message WhatsApp envoyé au client.
+function orderLink(order) {
+  return `${window.location.origin}/#commande-${encodeURIComponent(order.reference)}`;
+}
+
+function customerWhatsappUrl(order, lines) {
+  let phone = order.phone.replace(/\D/g, "");
+  if (phone.length === 8) phone = `${order.destination === "benin" ? "229" : "228"}${phone}`;
+  const text = [...lines, "", `Suivez votre commande ici : ${orderLink(order)}`].join("\n");
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
+// L'onglet s'ouvre au clic (sinon le navigateur bloque la fenêtre) ; en secours, un lien reste affiché.
+function openBlankWindow() {
+  const target = window.open("about:blank", "_blank");
+  if (target) target.opener = null;
+  return target;
+}
+
+function sendWhatsapp(target, url) {
+  if (target && !target.closed) {
+    target.location.href = url;
+    return;
+  }
+  const banner = $("#whatsapp-fallback");
+  banner.querySelector("a").href = url;
+  banner.hidden = false;
+}
+
+const statusWhatsappLines = {
+  demande_recue: "Nous avons bien reçu vos liens : nous préparons le montant exact de votre panier.",
+  devis_envoye: "Le montant de votre panier est prêt : il reste à le régler par MoMo.",
+  commande_fournisseur: "Vos articles ont été commandés auprès du vendeur.",
+  recu_france: "Votre colis est arrivé à notre adresse en France.",
+  en_transit: "Votre colis est en route vers vous.",
+  arrive: "Votre colis est arrivé au pays : nous vous contactons pour la livraison.",
+  livre: "Votre colis a été livré. Merci pour votre confiance !"
+};
+
+function statusWhatsappMessage(order, status = order.status) {
+  return [`Bonjour ${order.customerName},`, `Commande ${order.reference} : ${statusWhatsappLines[status] || statusNames[status]}`];
+}
+
+function adminCardState(order) {
+  if (order.cancelled) return "is-cancelled";
+  if (order.status === "livre") return "state-delivered";
+  if (order.paymentStatus === "verified") return "state-paid";
+  if (order.quoteTotalFcfa) return "state-sent";
+  return "";
+}
+
 function adminControls(order) {
   const canQuote = ["demande_recue", "devis_envoye"].includes(order.status)
     && !["proof_received", "verified"].includes(order.paymentStatus);
@@ -796,12 +847,13 @@ function adminControls(order) {
         ${order.articlesEur ? "Mettre à jour et renvoyer sur WhatsApp" : "Enregistrer et envoyer sur WhatsApp"}
       </button>
     </div>` : "";
-  const paymentSection = order.paymentStatus === "proof_received" ? `
+  const hasProof = order.paymentStatus === "proof_received";
+  const paymentSection = order.quoteTotalFcfa && ["awaiting_proof", "proof_received"].includes(order.paymentStatus) ? `
     <div class="payment-review">
-      <strong>Reçu MoMo à vérifier</strong>
-      <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>
-      <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">Confirmer le paiement</button>
-      <button class="button button-outline button-danger" type="button" data-reject-payment-id="${order.id}">Refuser le reçu</button>
+      <strong>${hasProof ? "Reçu MoMo envoyé par le client" : "Paiement MoMo attendu"} · ${formatFcfa(order.quoteTotalFcfa)}</strong>
+      ${hasProof ? `<button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>` : ""}
+      <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">✓ Paiement MoMo reçu</button>
+      ${hasProof ? `<button class="button button-outline button-danger" type="button" data-reject-payment-id="${order.id}">Refuser le reçu</button>` : ""}
       ${order.paymentMethod ? `<span>Moyen : ${escapeHtml(order.paymentMethod)}</span>` : ""}
       ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
     </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Panier payé</div>' : "";
@@ -822,6 +874,7 @@ function adminControls(order) {
       ${order.shippingEur ? `<button class="button button-outline" type="button" data-shipping-paid-id="${order.id}">Confirmer le paiement de l'expédition</button>` : ""}
     </div>` : "";
   const actions = `<div class="admin-actions">
+      ${order.cancelled ? "" : `<button class="button button-outline button-whatsapp" type="button" data-notify-order-id="${order.id}">Prévenir sur WhatsApp</button>`}
       <button class="button button-outline" type="button" data-edit-order-id="${order.id}">Modifier</button>
       ${order.cancelled
         ? `<button class="button button-outline" type="button" data-restore-order-id="${order.id}">Rétablir</button>`
@@ -901,7 +954,7 @@ function renderAdminCard(order) {
   const statusLabel = order.cancelled
     ? '<span class="status" data-status="annule">Annulée</span>'
     : `<span class="status" data-status="${order.status}">${statusNames[order.status]}</span>`;
-  return `<article class="order-card admin-card${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}">
+  return `<article class="order-card admin-card ${adminCardState(order)}" data-order-id="${order.id}">
     <div>
       <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span>${date ? `<span class="order-date">${escapeHtml(date)}</span>` : ""}<span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"} · ${shippingModeNames[order.shippingMode]}</span>${statusLabel}</div>
       ${adminItemsTable(order)}
@@ -953,7 +1006,7 @@ function renderTicket(order, items) {
   const foot = order.cancelled
     ? `<div class="cancelled-box"><strong>Commande annulée</strong><span>${escapeHtml(order.cancelReason || "")}</span></div>`
     : `${message}${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}${canCancel ? `<button class="text-button cancel-own-order" type="button" data-cancel-own-id="${order.id}">Annuler cette demande</button>` : ""}`;
-  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}" data-group="${delivered ? "delivered" : "active"}">
+  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}" data-reference="${escapeHtml(order.reference)}" data-group="${delivered ? "delivered" : "active"}">
     <div class="ticket-body">
       <div class="ticket-main">
         <header class="ticket-head">
@@ -989,6 +1042,35 @@ function renderTicket(order, items) {
     </div>
     ${foot ? `<div class="ticket-foot">${foot}</div>` : ""}
   </article>`;
+}
+
+let pendingOrderFocus = "";
+
+// Ouvert depuis le lien WhatsApp : affiche « Mes commandes » et met la commande en évidence.
+function openOrderFromHash() {
+  const match = window.location.hash.match(/^#commande-(.+)$/);
+  if (!match) return false;
+  pendingOrderFocus = decodeURIComponent(match[1]);
+  customerOrderFilter = "all";
+  document.querySelectorAll("[data-order-filter]").forEach((button) => {
+    const active = button.dataset.orderFilter === "all";
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  showCustomerPage("orders", false);
+  focusPendingOrder();
+  return true;
+}
+
+function focusPendingOrder() {
+  if (!pendingOrderFocus) return;
+  const ticket = [...document.querySelectorAll("#orders-list [data-reference]")]
+    .find((element) => element.dataset.reference === pendingOrderFocus);
+  if (!ticket) return;
+  pendingOrderFocus = "";
+  ticket.scrollIntoView({ behavior: "smooth", block: "center" });
+  ticket.classList.add("is-new");
+  window.setTimeout(() => ticket.classList.remove("is-new"), 4000);
 }
 
 let customerOrdersCache = [];
@@ -1108,6 +1190,7 @@ async function loadOrders() {
       $("#home-order-count").textContent = String(orders.length);
       customerOrdersCache = orders;
       renderCustomerOrders();
+      focusPendingOrder();
     }
   } catch (error) {
     console.error(error);
@@ -1154,8 +1237,10 @@ function showApp(user) {
     if (!$("#order-form [name=location]").value) {
       $("#order-form [name=destination]").value = userCountry();
     }
-    const initialPage = Object.keys(customerPageHashes).find((page) => customerPageHashes[page] === window.location.hash) || "order";
-    showCustomerPage(initialPage, window.location.hash !== customerPageHashes[initialPage]);
+    if (!openOrderFromHash()) {
+      const initialPage = Object.keys(customerPageHashes).find((page) => customerPageHashes[page] === window.location.hash) || "order";
+      showCustomerPage(initialPage, window.location.hash !== customerPageHashes[initialPage]);
+    }
   }
   loadOrders();
   clearInterval(refreshTimer);
@@ -1318,6 +1403,7 @@ $("#orders-list").addEventListener("submit", async (event) => {
 });
 window.addEventListener("hashchange", () => {
   if (!currentUser || currentUser.role === "admin") return;
+  if (openOrderFromHash()) return;
   const page = Object.keys(customerPageHashes).find((key) => customerPageHashes[key] === window.location.hash) || "order";
   showCustomerPage(page, false);
 });
@@ -1455,14 +1541,19 @@ $("#order-form").addEventListener("submit", async (event) => {
 $("#admin-orders").addEventListener("change", async (event) => {
   const select = event.target.closest("select[data-order-id]");
   if (!select) return;
+  const order = adminOrdersCache.find((candidate) => String(candidate.id) === select.dataset.orderId);
+  const target = openBlankWindow();
   select.disabled = true;
   try {
     await api(`/api/orders/${select.dataset.orderId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status: select.value })
     });
+    if (order) sendWhatsapp(target, customerWhatsappUrl(order, statusWhatsappMessage(order, select.value)));
+    else target?.close();
     await loadOrders();
   } catch (error) {
+    target?.close();
     window.alert(error.message);
     await loadOrders();
   }
@@ -1494,14 +1585,23 @@ $("#admin-orders").addEventListener("click", async (event) => {
   }
   const verifyButton = event.target.closest("button[data-verify-payment-id]");
   if (verifyButton) {
+    const order = adminOrdersCache.find((candidate) => String(candidate.id) === verifyButton.dataset.verifyPaymentId);
+    if (!order || !window.confirm(`Confirmer que vous avez bien reçu ${formatFcfa(order.quoteTotalFcfa)} par MoMo pour ${order.reference} ?`)) return;
+    const target = openBlankWindow();
     verifyButton.disabled = true;
     try {
-      await api(`/api/orders/${verifyButton.dataset.verifyPaymentId}/payment-status`, {
+      await api(`/api/orders/${order.id}/payment-status`, {
         method: "PATCH",
         body: JSON.stringify({ paymentStatus: "verified" })
       });
+      sendWhatsapp(target, customerWhatsappUrl(order, [
+        `Bonjour ${order.customerName},`,
+        `Nous avons bien reçu votre paiement MoMo de ${formatFcfa(order.quoteTotalFcfa)} pour la commande ${order.reference}.`,
+        "Nous commandons vos articles auprès du vendeur."
+      ]));
       await loadOrders();
     } catch (error) {
+      target?.close();
       window.alert(error.message);
       verifyButton.disabled = false;
     }
@@ -1510,11 +1610,20 @@ $("#admin-orders").addEventListener("click", async (event) => {
   const shippingPaidButton = event.target.closest("button[data-shipping-paid-id]");
   if (shippingPaidButton) {
     if (!window.confirm("Confirmer que les frais d'expédition ont bien été reçus ?")) return;
+    const order = adminOrdersCache.find((candidate) => String(candidate.id) === shippingPaidButton.dataset.shippingPaidId);
+    const target = openBlankWindow();
     shippingPaidButton.disabled = true;
     try {
       await api(`/api/orders/${shippingPaidButton.dataset.shippingPaidId}/shipping-paid`, { method: "PATCH", body: "{}" });
+      if (order) {
+        sendWhatsapp(target, customerWhatsappUrl(order, [
+          `Bonjour ${order.customerName},`,
+          `Nous avons bien reçu les frais d'expédition de la commande ${order.reference}. Votre colis part très bientôt.`
+        ]));
+      } else target?.close();
       await loadOrders();
     } catch (error) {
+      target?.close();
       window.alert(error.message);
       shippingPaidButton.disabled = false;
     }
@@ -1552,7 +1661,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
         `- Articles : ${formatEur(result.articlesEur)}`,
         `- Commission : ${formatEur(result.commissionEur)}`,
         `Total à payer par MoMo : ${formatEur(total)}, soit ${formatFcfa(result.quoteTotalFcfa)} (1 € = ${EUR_TO_FCFA} FCFA).`,
-        "Après le paiement, envoyez votre reçu depuis « Mes commandes » : nous commandons vos articles dès sa vérification."
+        "Après le paiement, envoyez votre reçu depuis le lien ci-dessous : nous commandons vos articles dès sa vérification."
       ].join("\n");
     } else {
       const weightInput = $(`#weight-kg-${orderId}`);
@@ -1574,9 +1683,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
         "Merci de régler ce montant par MoMo et de nous envoyer le reçu : nous expédions votre colis dès réception."
       ].join("\n");
     }
-    let phone = order.phone.replace(/\D/g, "");
-    if (phone.length === 8) phone = `${order.destination === "benin" ? "229" : "228"}${phone}`;
-    whatsappWindow.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    sendWhatsapp(whatsappWindow, customerWhatsappUrl(order, text.split("\n")));
     await loadOrders();
   } catch (error) {
     whatsappWindow.close();
@@ -1703,6 +1810,12 @@ $("#admin-edit-form").addEventListener("submit", async (event) => {
 });
 
 $("#admin-orders").addEventListener("click", async (event) => {
+  const notify = event.target.closest("[data-notify-order-id]");
+  if (notify) {
+    const order = adminOrdersCache.find((candidate) => String(candidate.id) === notify.dataset.notifyOrderId);
+    if (order) sendWhatsapp(openBlankWindow(), customerWhatsappUrl(order, statusWhatsappMessage(order)));
+    return;
+  }
   const button = event.target.closest("[data-edit-order-id], [data-cancel-order-id], [data-restore-order-id], [data-delete-order-id], [data-reject-payment-id]");
   if (!button) return;
   const id = button.dataset.editOrderId || button.dataset.cancelOrderId || button.dataset.restoreOrderId
@@ -1731,9 +1844,17 @@ $("#admin-orders").addEventListener("click", async (event) => {
     if (reason === null) return;
     request = [`/api/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ paymentStatus: "rejected", reason }) }];
   }
+  let whatsappLines = null;
+  if (button.dataset.cancelOrderId) {
+    whatsappLines = [`Bonjour ${order.customerName},`, `Votre commande ${order.reference} a été annulée : ${JSON.parse(request[1].body).reason || "voir le détail"}.`];
+  } else if (button.dataset.rejectPaymentId) {
+    whatsappLines = [`Bonjour ${order.customerName},`, `Votre reçu de paiement pour la commande ${order.reference} n'a pas pu être validé : ${JSON.parse(request[1].body).reason}.`, "Merci de nous renvoyer un reçu."];
+  }
+  const target = whatsappLines ? openBlankWindow() : null;
   button.disabled = true;
   try {
     await api(...request);
+    if (whatsappLines) sendWhatsapp(target, customerWhatsappUrl(order, whatsappLines));
     lastAdminOrdersHtml = "";
     await loadOrders();
   } catch (error) {
@@ -1786,3 +1907,7 @@ api("/api/me").then(({ user }) => {
   // Serveur mal configuré (ex. base non mise à jour) : on l'affiche au lieu d'échouer en silence.
   if (error.setup) $("#auth-message").textContent = error.message;
 }).finally(hidePreloader);
+
+$("#whatsapp-fallback").addEventListener("click", (event) => {
+  if (event.target.closest("a, button")) $("#whatsapp-fallback").hidden = true;
+});
