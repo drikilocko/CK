@@ -135,3 +135,7 @@ alter table public.ck_orders
   add column if not exists cancel_reason text,
   add column if not exists admin_note text not null default '',
   add column if not exists customer_message text not null default '';
+
+-- Reçu MoMo des frais d'expédition, envoyé sur le site (image JPG).
+alter table public.ck_orders
+  add column if not exists shipping_proof_path text;

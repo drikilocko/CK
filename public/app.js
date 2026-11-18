@@ -765,21 +765,50 @@ function paymentProofFormFor(order) {
       <label>Référence de transaction (facultatif)
         <input name="paymentReference" maxlength="100" value="${escapeHtml(order.paymentReference || "")}" placeholder="Ex. ID de la transaction MoMo">
       </label>
-      <label>Reçu de paiement (JPG, PNG, WEBP ou PDF · 5 Mo max)
-        <input name="proofFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+      <label>Photo ou capture du reçu MoMo (envoyée en JPG)
+        <input name="proofFile" type="file" accept="image/*" required>
       </label>
       <button class="button button-outline" type="submit">${order.hasPaymentProof ? "Remplacer le reçu" : "Envoyer le reçu"}</button>
       <span class="payment-proof-message" aria-live="polite"></span>
     </form>`;
 }
 
-function shippingProofLink(order) {
+// Reçu des frais d'expédition : envoyé sur le site (en JPG), comme le reçu du panier.
+function shippingProofFormFor(order) {
   if (order.shippingEur === null || order.shippingEur === undefined || order.shippingPaid) return "";
-  const message = [
-    `Bonjour, voici le reçu MoMo des frais d'expédition de ma commande ${order.reference}.`,
-    `Montant : ${formatFcfa(toFcfa(order.shippingEur))}.`
-  ].join("\n");
-  return `<a class="button button-primary shipping-whatsapp" href="https://wa.me/${whatsappNumberFor(userCountry())}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Envoyer le reçu à mon assistant</a>`;
+  return `
+    <form class="payment-proof-form" data-order-id="${order.id}" data-kind="shipping">
+      <strong>${order.hasShippingProof ? "Reçu des frais d'expédition envoyé · vérification en cours" : `Payez ${formatFcfa(toFcfa(order.shippingEur))} par MoMo puis envoyez le reçu`}</strong>
+      <label>Photo ou capture du reçu MoMo (envoyée en JPG)
+        <input name="proofFile" type="file" accept="image/*" required>
+      </label>
+      <button class="button button-outline" type="submit">${order.hasShippingProof ? "Remplacer le reçu" : "Envoyer le reçu"}</button>
+      <span class="payment-proof-message" aria-live="polite"></span>
+    </form>`;
+}
+
+// Convertit toute photo ou capture (PNG, WEBP, HEIC lisible par le navigateur…) en JPG de 2000 px maximum.
+async function imageToJpegDataUrl(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Image illisible : envoyez une photo ou une capture d'écran du reçu."));
+      element.src = url;
+    });
+    const scale = Math.min(1, 2000 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 // Lien direct vers la commande, ajouté à chaque message WhatsApp envoyé au client.
@@ -858,9 +887,15 @@ function adminControls(order) {
       ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
     </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Panier payé</div>' : "";
   const canSetShipping = order.status === "recu_france" && order.paymentStatus === "verified" && !order.shippingPaid;
+  const shippingProof = canSetShipping && order.hasShippingProof ? `
+      <div class="payment-review">
+        <strong>Reçu des frais d'expédition envoyé par le client</strong>
+        <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}" data-proof-kind="shipping">Consulter le reçu</button>
+        <button class="button button-outline button-danger" type="button" data-reject-shipping-id="${order.id}">Refuser le reçu</button>
+      </div>` : "";
   const shippingSection = canSetShipping ? `
     <div class="admin-step">
-      <strong>Étape 3 · Expédition (${shippingModeNames[order.shippingMode]})</strong>
+      <strong>Étape 3 · Expédition (${shippingModeNames[order.shippingMode]})</strong>${shippingProof}
       <label class="admin-quote-label" for="weight-kg-${order.id}">Poids du colis (kg)${order.shippingMode === "bateau" ? " · facultatif" : ""}
         <input id="weight-kg-${order.id}" class="weight-kg-input" data-preview-id="${order.id}" data-mode="${order.shippingMode}" type="number" min="0.01" max="5000" step="0.01" value="${order.shippingWeightKg ?? ""}" placeholder="Ex. 2,5" ${order.shippingMode === "avion" ? "required" : ""}>
       </label>
@@ -996,7 +1031,7 @@ function ticketStub(order) {
   const shippingDue = order.shippingEur !== null && order.shippingEur !== undefined && !order.shippingPaid;
   if (!order.quoteTotalFcfa) return { label: "PANIER", amount: "À venir", note: "Montant exact envoyé sur WhatsApp" };
   if (!cartPaid) return { label: "À PAYER · MOMO", amount: `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>`, note: paymentStatusNames[order.paymentStatus] || "" };
-  if (shippingDue) return { label: "EXPÉDITION · MOMO", amount: `${formatNumber(toFcfa(order.shippingEur))} <small>FCFA</small>`, note: "À régler avant le départ" };
+  if (shippingDue) return { label: "EXPÉDITION · MOMO", amount: `${formatNumber(toFcfa(order.shippingEur))} <small>FCFA</small>`, note: order.hasShippingProof ? "Reçu envoyé · vérification" : "À régler avant le départ" };
   if (order.shippingPaid) return { label: "TOUT EST RÉGLÉ", amount: "✓ Payé", note: "Panier et expédition" };
   return { label: "PANIER PAYÉ", amount: `${formatNumber(order.quoteTotalFcfa)} <small>FCFA</small>`, note: "Expédition calculée à réception en France" };
 }
@@ -1018,7 +1053,7 @@ function renderTicket(order, items) {
     ? `<div class="customer-message"><strong>Message de votre assistant</strong>${escapeHtml(order.customerMessage)}</div>` : "";
   const foot = order.cancelled
     ? `<div class="cancelled-box"><strong>Commande annulée</strong><span>${escapeHtml(order.cancelReason || "")}</span></div>`
-    : `${message}${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}${canCancel ? `<button class="text-button cancel-own-order" type="button" data-cancel-own-id="${order.id}">Annuler cette demande</button>` : ""}`;
+    : `${message}${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofFormFor(order)}${canCancel ? `<button class="text-button cancel-own-order" type="button" data-cancel-own-id="${order.id}">Annuler cette demande</button>` : ""}`;
   return `<article class="order-card ticket${delivered ? " is-delivered" : ""}${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}" data-reference="${escapeHtml(order.reference)}" data-group="${delivered ? "delivered" : "active"}">
     <div class="ticket-body">
       <div class="ticket-main">
@@ -1116,7 +1151,7 @@ function renderCustomerOrders() {
 let adminOrderFilter = "todo";
 const adminFilters = {
   todo: (order) => !order.cancelled && (order.status === "demande_recue" || order.paymentStatus === "proof_received"
-    || (order.status === "recu_france" && !order.shippingPaid)),
+    || (order.status === "recu_france" && !order.shippingPaid) || (order.hasShippingProof && !order.shippingPaid)),
   active: (order) => !order.cancelled && order.status !== "livre",
   delivered: (order) => !order.cancelled && order.status === "livre",
   cancelled: (order) => order.cancelled,
@@ -1207,7 +1242,8 @@ async function loadOrders() {
       adminOrdersCache = orders;
       const live = orders.filter((order) => !order.cancelled);
       $("#admin-quotes-pending").textContent = String(live.filter((order) => order.status === "demande_recue").length);
-      $("#admin-payments-pending").textContent = String(live.filter((order) => order.paymentStatus === "proof_received").length);
+      $("#admin-payments-pending").textContent = String(live.filter((order) => order.paymentStatus === "proof_received"
+        || (order.hasShippingProof && !order.shippingPaid)).length);
       $("#admin-orders-to-ship").textContent = String(live.filter((order) => order.status === "recu_france" && !order.shippingPaid).length);
       renderAdminOrders();
     } else {
@@ -1404,17 +1440,19 @@ $("#orders-list").addEventListener("submit", async (event) => {
     message.textContent = "Sélectionnez le reçu de paiement.";
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    message.textContent = "Le fichier ne doit pas dépasser 5 Mo.";
+  if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
+    message.textContent = "Envoyez une photo ou une capture d'écran du reçu.";
     return;
   }
   button.disabled = true;
   message.textContent = "Envoi du reçu…";
   try {
-    await api(`/api/orders/${form.dataset.orderId}/payment-proof`, {
+    const proofData = await imageToJpegDataUrl(file);
+    const shipping = form.dataset.kind === "shipping";
+    await api(`/api/orders/${form.dataset.orderId}/${shipping ? "shipping-proof" : "payment-proof"}`, {
       method: "POST",
-      body: JSON.stringify({
-        proofData: await readFileAsDataUrl(file),
+      body: JSON.stringify(shipping ? { proofData } : {
+        proofData,
         paymentMethod: data.get("paymentMethod"),
         paymentReference: data.get("paymentReference")
       })
@@ -1596,7 +1634,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
     try {
       const { url } = await api(`/api/orders/${proofButton.dataset.proofOrderId}/payment-proof-link`, {
         method: "POST",
-        body: "{}"
+        body: JSON.stringify({ kind: proofButton.dataset.proofKind || "cart" })
       });
       proofWindow.location.href = url;
     } catch (error) {
@@ -1704,7 +1742,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
         `Bonjour ${order.customerName},`,
         `Votre commande ${order.reference} est arrivée à notre adresse en France.`,
         `${detail}, soit ${formatFcfa(result.shippingFcfa)}.`,
-        "Merci de régler ce montant par MoMo et de nous envoyer le reçu : nous expédions votre colis dès réception."
+        "Merci de régler ce montant par MoMo puis d'envoyer la photo du reçu depuis le lien ci-dessous : nous expédions votre colis dès sa vérification."
       ].join("\n");
     }
     sendWhatsapp(whatsappWindow, customerWhatsappUrl(order, text.split("\n")));
@@ -1840,10 +1878,10 @@ $("#admin-orders").addEventListener("click", async (event) => {
     if (order) sendWhatsapp(openBlankWindow(), customerWhatsappUrl(order, statusWhatsappMessage(order)));
     return;
   }
-  const button = event.target.closest("[data-edit-order-id], [data-cancel-order-id], [data-restore-order-id], [data-delete-order-id], [data-reject-payment-id]");
+  const button = event.target.closest("[data-edit-order-id], [data-cancel-order-id], [data-restore-order-id], [data-delete-order-id], [data-reject-payment-id], [data-reject-shipping-id]");
   if (!button) return;
   const id = button.dataset.editOrderId || button.dataset.cancelOrderId || button.dataset.restoreOrderId
-    || button.dataset.deleteOrderId || button.dataset.rejectPaymentId;
+    || button.dataset.deleteOrderId || button.dataset.rejectPaymentId || button.dataset.rejectShippingId;
   const order = adminOrdersCache.find((candidate) => String(candidate.id) === id);
   if (!order) return;
   if (button.dataset.editOrderId) {
@@ -1863,6 +1901,10 @@ $("#admin-orders").addEventListener("click", async (event) => {
       : "";
     if (!window.confirm(`Supprimer définitivement la commande ${order.reference} ? Cette action est irréversible.${warning}`)) return;
     request = [`/api/orders/${id}`, { method: "DELETE" }];
+  } else if (button.dataset.rejectShippingId) {
+    const reason = window.prompt("Pourquoi refuser ce reçu d'expédition ? (le client verra ce message)", "le montant ne correspond pas");
+    if (reason === null) return;
+    request = [`/api/orders/${id}/shipping-proof-reject`, { method: "POST", body: JSON.stringify({ reason }) }];
   } else {
     const reason = window.prompt("Pourquoi refuser ce reçu ? (le client verra ce message)", "le montant ne correspond pas");
     if (reason === null) return;
@@ -1871,6 +1913,8 @@ $("#admin-orders").addEventListener("click", async (event) => {
   let whatsappLines = null;
   if (button.dataset.cancelOrderId) {
     whatsappLines = [`Bonjour ${order.customerName},`, `Votre commande ${order.reference} a été annulée : ${JSON.parse(request[1].body).reason || "voir le détail"}.`];
+  } else if (button.dataset.rejectShippingId) {
+    whatsappLines = [`Bonjour ${order.customerName},`, `Votre reçu des frais d'expédition pour la commande ${order.reference} n'a pas pu être validé : ${JSON.parse(request[1].body).reason}.`, "Merci d'envoyer un nouveau reçu depuis le lien ci-dessous."];
   } else if (button.dataset.rejectPaymentId) {
     whatsappLines = [`Bonjour ${order.customerName},`, `Votre reçu de paiement pour la commande ${order.reference} n'a pas pu être validé : ${JSON.parse(request[1].body).reason}.`, "Merci de nous renvoyer un reçu."];
   }

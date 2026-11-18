@@ -30,6 +30,16 @@ function commissionFor(articlesEur) {
 }
 const toFcfa = (amountEur) => Math.round(amountEur * EUR_TO_FCFA);
 const CANCELLED_ERROR = "Cette commande est annulée. Rétablissez-la avant de continuer.";
+// Les reçus sont toujours enregistrés en JPG (le site convertit la photo avant l'envoi).
+function readJpegProof(proofData) {
+  const match = typeof proofData === "string" && proofData.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return { error: "Le reçu doit être une image JPG (photo ou capture d'écran)." };
+  const image = Buffer.from(match[1], "base64");
+  if (!image.length || image.length > 5 * 1024 * 1024) return { error: "Le reçu doit peser au maximum 5 Mo." };
+  if (!PAYMENT_PROOF_TYPES.get("image/jpeg").matches(image)) return { error: "Le fichier envoyé n'est pas une image JPG valide." };
+  return { image };
+}
+const SCHEMA_OUTDATED = "Base à mettre à jour : exécutez supabase-schema.sql dans Supabase > SQL Editor.";
 const cleanText = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 const PAYMENT_PROOF_TYPES = new Map([
   ["image/jpeg", { extension: "jpg", matches: (image) => image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff }],
@@ -635,6 +645,7 @@ function mapOrder(row) {
     shippingWeightKg: row.shipping_weight_kg === null || row.shipping_weight_kg === undefined ? null : Number(row.shipping_weight_kg),
     shippingEur: row.shipping_eur === null || row.shipping_eur === undefined ? null : Number(row.shipping_eur),
     shippingPaid: Boolean(row.shipping_paid),
+    hasShippingProof: Boolean(row.shipping_proof_path),
     cancelled: Boolean(row.cancelled_at),
     cancelledAt: row.cancelled_at || null,
     cancelReason: row.cancel_reason || "",
@@ -789,23 +800,14 @@ app.post("/api/orders/:id/payment-proof", requireAuth, async (req, res, next) =>
     if (!order.quote_total_fcfa || !["awaiting_proof", "proof_received"].includes(order.payment_status)) {
       return res.status(409).json({ error: "Un devis doit être envoyé avant de transmettre une preuve de paiement." });
     }
-    const proofData = typeof req.body.proofData === "string" ? req.body.proofData : "";
-    const match = proofData.match(/^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
-    if (!match) return res.status(400).json({ error: "Ajoutez un reçu au format JPG, PNG, WEBP ou PDF." });
+    const proof = readJpegProof(req.body.proofData);
+    if (proof.error) return res.status(400).json({ error: proof.error });
     const paymentMethod = typeof req.body.paymentMethod === "string" ? req.body.paymentMethod : "";
     if (!PAYMENT_METHODS.includes(paymentMethod)) {
       return res.status(400).json({ error: "Choisissez un moyen de paiement valide." });
     }
-    const image = Buffer.from(match[2], "base64");
-    if (!image.length || image.length > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: "La preuve doit peser au maximum 5 Mo." });
-    }
-    const proofType = PAYMENT_PROOF_TYPES.get(match[1]);
-    if (!proofType.matches(image)) {
-      return res.status(400).json({ error: "Le contenu du fichier ne correspond pas au format annoncé." });
-    }
-    const filename = `${order.id}/receipt.${proofType.extension}`;
-    await uploadPaymentProof(filename, match[1], image);
+    const filename = `${order.id}/receipt.jpg`;
+    await uploadPaymentProof(filename, "image/jpeg", proof.image);
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
       query: { id: `eq.${order.id}`, select: "id" },
@@ -830,10 +832,11 @@ app.post("/api/orders/:id/payment-proof-link", requireAuth, requireAdmin, async 
   try {
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
     const [order] = await supabaseRequest("ck_orders", {
-      query: { select: "payment_proof_path", id: `eq.${req.params.id}`, limit: 1 }
+      query: { select: "*", id: `eq.${req.params.id}`, limit: 1 }
     });
-    if (!order?.payment_proof_path) return res.status(404).json({ error: "Aucune preuve de paiement n'est jointe." });
-    const objectPath = order.payment_proof_path.split("/").map(encodeURIComponent).join("/");
+    const proofPath = req.body?.kind === "shipping" ? order?.shipping_proof_path : order?.payment_proof_path;
+    if (!proofPath) return res.status(404).json({ error: "Aucune preuve de paiement n'est jointe." });
+    const objectPath = proofPath.split("/").map(encodeURIComponent).join("/");
     const response = await fetch(`${supabaseUrl}/storage/v1/object/sign/ck-payment-proofs/${objectPath}`, {
       method: "POST",
       headers: {
@@ -923,6 +926,58 @@ app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, 
     if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
     res.json({ ok: true });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Reçu MoMo des frais d'expédition : envoyé par le client sur le site, comme pour le panier.
+app.post("/api/orders/:id/shipping-proof", requireAuth, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "id,user_id,shipping_eur,shipping_paid,cancelled_at", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    if (!order || (req.user.role !== "admin" && order.user_id !== req.user.id)) {
+      return res.status(404).json({ error: "Commande introuvable." });
+    }
+    if (order.cancelled_at) return res.status(409).json({ error: CANCELLED_ERROR });
+    if (order.shipping_eur === null || order.shipping_eur === undefined || order.shipping_paid) {
+      return res.status(409).json({ error: "Aucun frais d'expédition en attente de paiement pour cette commande." });
+    }
+    const proof = readJpegProof(req.body.proofData);
+    if (proof.error) return res.status(400).json({ error: proof.error });
+    const filename = `${order.id}/shipping.jpg`;
+    await uploadPaymentProof(filename, "image/jpeg", proof.image);
+    await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${order.id}` },
+      body: { shipping_proof_path: filename, customer_message: "", updated_at: new Date().toISOString() }
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    if (["42703", "PGRST204"].includes(error.code)) return res.status(503).json({ error: SCHEMA_OUTDATED });
+    next(error);
+  }
+});
+
+app.post("/api/orders/:id/shipping-proof-reject", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const reason = cleanText(req.body?.reason, 300) || "le reçu ne correspond pas au montant";
+    const updated = await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${req.params.id}`, shipping_proof_path: "not.is.null", shipping_paid: "is.false", select: "id" },
+      body: {
+        shipping_proof_path: null,
+        customer_message: `Reçu des frais d'expédition refusé : ${reason}. Merci d'envoyer un nouveau reçu.`,
+        updated_at: new Date().toISOString()
+      },
+      prefer: "return=representation"
+    });
+    if (!updated.length) return res.status(409).json({ error: "Aucun reçu d'expédition en attente." });
+    res.json({ ok: true });
+  } catch (error) {
+    if (["42703", "PGRST204"].includes(error.code)) return res.status(503).json({ error: SCHEMA_OUTDATED });
     next(error);
   }
 });
