@@ -760,6 +760,12 @@ app.patch("/api/orders/:id/shipping-paid", requireAuth, requireAdmin, async (req
       prefer: "return=representation"
     });
     if (!updated.length) return res.status(409).json({ error: "Enregistrez d'abord les frais d'expédition." });
+    // Frais d'expédition reçus : le colis part, on passe automatiquement à « En route ».
+    await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${req.params.id}`, status: "eq.recu_france" },
+      body: { status: "en_transit", updated_at: new Date().toISOString() }
+    });
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -881,7 +887,8 @@ app.patch("/api/orders/:id/payment-status", requireAuth, requireAdmin, async (re
         cancelled_at: "is.null",
         select: "id"
       },
-      body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), customer_message: "", updated_at: new Date().toISOString() },
+      // Paiement reçu : on passe automatiquement à « Commandé auprès du vendeur ».
+      body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), status: "commande_fournisseur", customer_message: "", updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
     if (!updated.length) return res.status(409).json({ error: "Envoyez d'abord le montant du panier au client." });

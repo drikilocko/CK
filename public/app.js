@@ -1621,7 +1621,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
       sendWhatsapp(target, customerWhatsappUrl(order, [
         `Bonjour ${order.customerName},`,
         `Nous avons bien reçu votre paiement MoMo de ${formatFcfa(order.quoteTotalFcfa)} pour la commande ${order.reference}.`,
-        "Nous commandons vos articles auprès du vendeur."
+        "Vos articles sont maintenant commandés auprès du vendeur. Nous vous prévenons dès leur arrivée en France."
       ]));
       await loadOrders();
     } catch (error) {
@@ -1642,7 +1642,7 @@ $("#admin-orders").addEventListener("click", async (event) => {
       if (order) {
         sendWhatsapp(target, customerWhatsappUrl(order, [
           `Bonjour ${order.customerName},`,
-          `Nous avons bien reçu les frais d'expédition de la commande ${order.reference}. Votre colis part très bientôt.`
+          `Nous avons bien reçu les frais d'expédition de la commande ${order.reference}. Votre colis est maintenant en route vers vous.`
         ]));
       } else target?.close();
       await loadOrders();
