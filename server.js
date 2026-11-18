@@ -29,6 +29,8 @@ function commissionFor(articlesEur) {
   return roundCents(articlesEur * 0.1);
 }
 const toFcfa = (amountEur) => Math.round(amountEur * EUR_TO_FCFA);
+const CANCELLED_ERROR = "Cette commande est annulée. Rétablissez-la avant de continuer.";
+const cleanText = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 const PAYMENT_PROOF_TYPES = new Map([
   ["image/jpeg", { extension: "jpg", matches: (image) => image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff }],
   ["image/png", { extension: "png", matches: (image) => image.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
@@ -225,6 +227,7 @@ async function checkSupabaseTables() {
     await supabaseRequest("ck_orders", { query: { select: "quote_total_fcfa,quote_sent_at", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "payment_status,payment_method,payment_reference,payment_proof_path,payment_verified_at", limit: 0 } });
     await supabaseRequest("ck_orders", { query: { select: "shipping_mode,articles_eur,commission_eur,shipping_weight_kg,shipping_eur,shipping_paid", limit: 0 } });
+    await supabaseRequest("ck_orders", { query: { select: "cancelled_at,cancel_reason,admin_note,customer_message", limit: 0 } });
   } catch (error) {
     if (["42P01", "PGRST205"].includes(error.code)) {
       throw new Error("Tables CK manquantes dans Supabase. Exécutez supabase-schema.sql dans Supabase > SQL Editor.");
@@ -632,6 +635,11 @@ function mapOrder(row) {
     shippingWeightKg: row.shipping_weight_kg === null || row.shipping_weight_kg === undefined ? null : Number(row.shipping_weight_kg),
     shippingEur: row.shipping_eur === null || row.shipping_eur === undefined ? null : Number(row.shipping_eur),
     shippingPaid: Boolean(row.shipping_paid),
+    cancelled: Boolean(row.cancelled_at),
+    cancelledAt: row.cancelled_at || null,
+    cancelReason: row.cancel_reason || "",
+    customerMessage: row.customer_message || "",
+    ...(row.include_admin_fields ? { adminNote: row.admin_note || "" } : {}),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -652,7 +660,11 @@ app.get("/api/orders", requireAuth, async (req, res, next) => {
       for (const user of users) usernames.set(user.id, user.username);
     }
     res.json({
-      orders: rows.map((row) => mapOrder({ ...row, username: usernames.get(row.user_id) || "" }))
+      orders: rows.map((row) => mapOrder({
+        ...row,
+        username: usernames.get(row.user_id) || "",
+        include_admin_fields: req.user.role === "admin"
+      }))
     });
   } catch (error) {
     next(error);
@@ -674,6 +686,7 @@ app.patch("/api/orders/:id/quote", requireAuth, requireAdmin, async (req, res, n
         id: `eq.${req.params.id}`,
         status: "in.(demande_recue,devis_envoye)",
         payment_status: "in.(not_started,awaiting_proof)",
+        cancelled_at: "is.null",
         select: "id"
       },
       body: {
@@ -698,9 +711,10 @@ app.patch("/api/orders/:id/shipping", requireAuth, requireAdmin, async (req, res
   try {
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
     const [order] = await supabaseRequest("ck_orders", {
-      query: { select: "id,status,payment_status,shipping_mode,shipping_paid", id: `eq.${req.params.id}`, limit: 1 }
+      query: { select: "id,status,payment_status,shipping_mode,shipping_paid,cancelled_at", id: `eq.${req.params.id}`, limit: 1 }
     });
     if (!order) return res.status(404).json({ error: "Commande introuvable." });
+    if (order.cancelled_at) return res.status(409).json({ error: CANCELLED_ERROR });
     if (order.status !== "recu_france" || order.payment_status !== "verified" || order.shipping_paid) {
       return res.status(409).json({ error: "Les frais d'expédition se calculent quand le colis est reçu en France et avant leur paiement." });
     }
@@ -741,7 +755,7 @@ app.patch("/api/orders/:id/shipping-paid", requireAuth, requireAdmin, async (req
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
-      query: { id: `eq.${req.params.id}`, shipping_eur: "not.is.null", select: "id" },
+      query: { id: `eq.${req.params.id}`, shipping_eur: "not.is.null", cancelled_at: "is.null", select: "id" },
       body: { shipping_paid: true, updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
@@ -757,7 +771,7 @@ app.post("/api/orders/:id/payment-proof", requireAuth, async (req, res, next) =>
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
     const [order] = await supabaseRequest("ck_orders", {
       query: {
-        select: "id,user_id,quote_total_fcfa,payment_status",
+        select: "id,user_id,quote_total_fcfa,payment_status,cancelled_at",
         id: `eq.${req.params.id}`,
         limit: 1
       }
@@ -765,6 +779,7 @@ app.post("/api/orders/:id/payment-proof", requireAuth, async (req, res, next) =>
     if (!order || (req.user.role !== "admin" && order.user_id !== req.user.id)) {
       return res.status(404).json({ error: "Commande introuvable." });
     }
+    if (order.cancelled_at) return res.status(409).json({ error: CANCELLED_ERROR });
     if (!order.quote_total_fcfa || !["awaiting_proof", "proof_received"].includes(order.payment_status)) {
       return res.status(409).json({ error: "Un devis doit être envoyé avant de transmettre une preuve de paiement." });
     }
@@ -793,6 +808,7 @@ app.post("/api/orders/:id/payment-proof", requireAuth, async (req, res, next) =>
         payment_method: paymentMethod,
         payment_reference: typeof req.body.paymentReference === "string" ? req.body.paymentReference.trim().slice(0, 100) : "",
         payment_proof_path: filename,
+        customer_message: "",
         updated_at: new Date().toISOString()
       },
       prefer: "return=representation"
@@ -836,8 +852,24 @@ app.post("/api/orders/:id/payment-proof-link", requireAuth, requireAdmin, async 
 
 app.patch("/api/orders/:id/payment-status", requireAuth, requireAdmin, async (req, res, next) => {
   try {
-    if (!/^\d+$/.test(req.params.id) || req.body.paymentStatus !== "verified") {
+    if (!/^\d+$/.test(req.params.id) || !["verified", "rejected"].includes(req.body.paymentStatus)) {
       return res.status(400).json({ error: "Statut de paiement invalide." });
+    }
+    if (req.body.paymentStatus === "rejected") {
+      const reason = cleanText(req.body.reason, 300) || "le reçu est illisible ou ne correspond pas au montant";
+      const rejected = await supabaseRequest("ck_orders", {
+        method: "PATCH",
+        query: { id: `eq.${req.params.id}`, payment_status: "eq.proof_received", select: "id" },
+        body: {
+          payment_status: "awaiting_proof",
+          payment_proof_path: null,
+          customer_message: `Reçu de paiement refusé : ${reason}. Merci d'envoyer un nouveau reçu.`,
+          updated_at: new Date().toISOString()
+        },
+        prefer: "return=representation"
+      });
+      if (!rejected.length) return res.status(409).json({ error: "Aucune preuve en attente pour cette commande." });
+      return res.json({ ok: true });
     }
     const updated = await supabaseRequest("ck_orders", {
       method: "PATCH",
@@ -845,9 +877,10 @@ app.patch("/api/orders/:id/payment-status", requireAuth, requireAdmin, async (re
         id: `eq.${req.params.id}`,
         payment_status: "eq.proof_received",
         payment_proof_path: "not.is.null",
+        cancelled_at: "is.null",
         select: "id"
       },
-      body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      body: { payment_status: "verified", payment_verified_at: new Date().toISOString(), customer_message: "", updated_at: new Date().toISOString() },
       prefer: "return=representation"
     });
     if (!updated.length) return res.status(409).json({ error: "Aucune preuve en attente pour cette commande." });
@@ -864,7 +897,7 @@ app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, 
     if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
     const requiresVerifiedPayment = STATUSES.indexOf(status) >= STATUSES.indexOf("commande_fournisseur");
     const requiresShippingPaid = STATUSES.indexOf(status) >= STATUSES.indexOf("en_transit");
-    const query = { id: `eq.${req.params.id}`, select: "id" };
+    const query = { id: `eq.${req.params.id}`, cancelled_at: "is.null", select: "id" };
     if (requiresVerifiedPayment) query.payment_status = "eq.verified";
     if (requiresShippingPaid) query.shipping_paid = "is.true";
     const updated = await supabaseRequest("ck_orders", {
@@ -880,6 +913,152 @@ app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, 
       return res.status(409).json({ error: "Confirmez le paiement MoMo avant de commander auprès du vendeur." });
     }
     if (!updated.length) return res.status(404).json({ error: "Commande introuvable." });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Administration : modifier une commande, l'annuler, la rétablir ou la supprimer.
+app.patch("/api/orders/:id", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "id,items_json,shipping_eur,shipping_mode", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    if (!order) return res.status(404).json({ error: "Commande introuvable." });
+    const body = req.body || {};
+    const changes = {};
+    if (body.customerName !== undefined) {
+      const customerName = cleanText(body.customerName, 100);
+      if (!customerName) return res.status(400).json({ error: "Le nom du destinataire est obligatoire." });
+      changes.customer_name = customerName;
+    }
+    if (body.phone !== undefined) {
+      const phone = cleanText(body.phone, 30);
+      if (!phone) return res.status(400).json({ error: "Le téléphone est obligatoire." });
+      changes.phone = phone;
+    }
+    if (body.location !== undefined) {
+      const location = cleanText(body.location, 300);
+      if (!location) return res.status(400).json({ error: "L'adresse de livraison est obligatoire." });
+      changes.location = location;
+    }
+    if (body.destination !== undefined) {
+      if (!SHIPPING_COUNTRIES.includes(body.destination)) return res.status(400).json({ error: "Destination invalide." });
+      changes.destination = body.destination;
+    }
+    if (body.shippingMode !== undefined && body.shippingMode !== order.shipping_mode) {
+      if (!SHIPPING_MODES.includes(body.shippingMode)) return res.status(400).json({ error: "Mode d'expédition invalide." });
+      if (order.shipping_eur !== null && order.shipping_eur !== undefined) {
+        return res.status(409).json({ error: "Les frais d'expédition sont déjà calculés : le mode ne peut plus changer." });
+      }
+      changes.shipping_mode = body.shippingMode;
+    }
+    if (body.notes !== undefined) changes.notes = cleanText(body.notes, 1000);
+    if (body.adminNote !== undefined) changes.admin_note = cleanText(body.adminNote, 2000);
+    if (body.customerMessage !== undefined) changes.customer_message = cleanText(body.customerMessage, 500);
+    if (body.items !== undefined) {
+      if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 20) {
+        return res.status(400).json({ error: "Une commande doit garder entre 1 et 20 articles." });
+      }
+      const previous = Array.isArray(order.items_json) ? order.items_json
+        : (typeof order.items_json === "string" ? JSON.parse(order.items_json) : []);
+      let subtotal = 0;
+      changes.items_json = body.items.map((item, index) => {
+        const link = validateLink(item.link);
+        const name = cleanText(item.name, 120) || `Article ${index + 1}`;
+        const quantity = Number(item.quantity ?? 1);
+        const priceEur = item.priceEur === "" || item.priceEur === null || item.priceEur === undefined ? null : Number(item.priceEur);
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99
+          || (priceEur !== null && (!Number.isFinite(priceEur) || priceEur <= 0 || priceEur > 1000000))) {
+          throw new Error("Vérifiez la quantité (1 à 99) et le prix de chaque article.");
+        }
+        // La photo n'est pas modifiable ici : on reprend celle de l'article d'origine (même lien).
+        const original = previous.find((candidate) => candidate.link === link) || {};
+        const available = item.available !== false;
+        if (available && priceEur !== null) subtotal += priceEur * quantity;
+        return {
+          name,
+          link,
+          quantity,
+          priceEur,
+          image: typeof original.image === "string" ? original.image : "",
+          available,
+          adminComment: cleanText(item.adminComment, 200)
+        };
+      });
+      changes.subtotal_eur = roundCents(subtotal);
+    }
+    if (!Object.keys(changes).length) return res.status(400).json({ error: "Aucune modification à enregistrer." });
+    changes.updated_at = new Date().toISOString();
+    await supabaseRequest("ck_orders", { method: "PATCH", query: { id: `eq.${order.id}` }, body: changes });
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && !error.code) return res.status(400).json({ error: error.message });
+    next(error);
+  }
+});
+
+app.post("/api/orders/:id/cancel", requireAuth, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "id,user_id,status,payment_status,cancelled_at", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    const isAdmin = req.user.role === "admin";
+    if (!order || (!isAdmin && order.user_id !== req.user.id)) return res.status(404).json({ error: "Commande introuvable." });
+    if (order.cancelled_at) return res.status(409).json({ error: "Cette commande est déjà annulée." });
+    if (order.status === "livre") return res.status(409).json({ error: "Une commande livrée ne peut pas être annulée." });
+    // Le client annule seul tant qu'il n'a rien payé ; ensuite c'est l'administration qui gère (remboursement).
+    if (!isAdmin && (!["demande_recue", "devis_envoye"].includes(order.status)
+      || ["proof_received", "verified"].includes(order.payment_status))) {
+      return res.status(409).json({ error: "Votre paiement a déjà été envoyé : contactez votre assistant pour annuler." });
+    }
+    const reason = cleanText(req.body?.reason, 300) || (isAdmin ? "Annulée par l'administration" : "Annulée par le client");
+    await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${order.id}` },
+      body: { cancelled_at: new Date().toISOString(), cancel_reason: reason, updated_at: new Date().toISOString() }
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/orders/:id/restore", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const updated = await supabaseRequest("ck_orders", {
+      method: "PATCH",
+      query: { id: `eq.${req.params.id}`, cancelled_at: "not.is.null", select: "id" },
+      body: { cancelled_at: null, cancel_reason: null, updated_at: new Date().toISOString() },
+      prefer: "return=representation"
+    });
+    if (!updated.length) return res.status(404).json({ error: "Commande introuvable ou non annulée." });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/orders/:id", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: "Commande introuvable." });
+    const [order] = await supabaseRequest("ck_orders", {
+      query: { select: "id,payment_proof_path", id: `eq.${req.params.id}`, limit: 1 }
+    });
+    if (!order) return res.status(404).json({ error: "Commande introuvable." });
+    await supabaseRequest("ck_orders", { method: "DELETE", query: { id: `eq.${order.id}` } });
+    if (order.payment_proof_path) {
+      // Nettoyage du reçu : un échec ici n'empêche pas la suppression de la commande.
+      await fetch(`${supabaseUrl}/storage/v1/object/ck-payment-proofs`, {
+        method: "DELETE",
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prefixes: [order.payment_proof_path] })
+      }).catch(() => {});
+    }
     res.json({ ok: true });
   } catch (error) {
     next(error);

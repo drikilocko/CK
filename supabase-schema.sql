@@ -128,3 +128,10 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
+
+-- Gestion admin : annulation, note interne et message visible par le client.
+alter table public.ck_orders
+  add column if not exists cancelled_at timestamptz,
+  add column if not exists cancel_reason text,
+  add column if not exists admin_note text not null default '',
+  add column if not exists customer_message text not null default '';

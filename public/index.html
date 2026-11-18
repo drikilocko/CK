@@ -450,13 +450,32 @@
           <article class="admin-stat"><span>Reçus en France à expédier</span><strong id="admin-orders-to-ship">0</strong></article>
         </div>
         <label class="order-search-label">Rechercher une commande
-          <input id="admin-order-search" type="search" autocomplete="off" placeholder="Référence ou téléphone du client">
+          <input id="admin-order-search" type="search" autocomplete="off" placeholder="Référence, nom, téléphone ou article">
         </label>
+        <div class="order-filters admin-filters" role="group" aria-label="Filtrer les commandes">
+          <button class="filter-chip active" type="button" data-admin-filter="todo" aria-pressed="true"><span>À traiter</span><b>0</b></button>
+          <button class="filter-chip" type="button" data-admin-filter="active" aria-pressed="false"><span>En cours</span><b>0</b></button>
+          <button class="filter-chip" type="button" data-admin-filter="delivered" aria-pressed="false"><span>Livrées</span><b>0</b></button>
+          <button class="filter-chip" type="button" data-admin-filter="cancelled" aria-pressed="false"><span>Annulées</span><b>0</b></button>
+          <button class="filter-chip" type="button" data-admin-filter="all" aria-pressed="false"><span>Toutes</span><b>0</b></button>
+        </div>
         <p id="admin-search-results" class="admin-search-results" aria-live="polite"></p>
         <div id="admin-orders" class="orders-list"></div>
       </section>
     </section>
   </main>
+  <dialog id="admin-edit" class="quote-notice admin-edit">
+    <form id="admin-edit-form" class="quote-notice-content" method="dialog">
+      <p class="eyebrow">MODIFIER LA COMMANDE</p>
+      <h2 id="admin-edit-title">Commande</h2>
+      <div id="admin-edit-fields"></div>
+      <p id="admin-edit-message" class="admin-edit-message" aria-live="polite"></p>
+      <div class="quote-notice-actions">
+        <button id="admin-edit-cancel" class="button button-outline" type="button">Fermer</button>
+        <button class="button button-primary" type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="quote-notice" class="quote-notice">
     <div class="quote-notice-content">
       <p class="eyebrow">AVANT D'ENVOYER</p>

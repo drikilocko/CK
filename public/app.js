@@ -656,6 +656,14 @@ function readFileAsDataUrl(file) {
   });
 }
 
+// Supabase renvoie « 2026-11-18T09:12:33.123+00:00 » ; d'anciennes lignes « 2026-11-18 09:12:33 » sans fuseau (UTC).
+function orderDate(value) {
+  if (!value) return null;
+  const text = String(value).replace(" ", "T");
+  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text}Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatNumber(amount) {
   return new Intl.NumberFormat("fr-FR").format(amount);
 }
@@ -734,10 +742,13 @@ function renderItems(order) {
   return order.items.map((item) => {
     const quantity = item.quantity || 1;
     const label = `${quantity > 1 ? `${quantity} × ` : ""}${escapeHtml(item.name)}${item.priceEur ? ` · ${escapeHtml(formatEur(item.priceEur))}` : ""}`;
-    const content = `${itemThumb(item.image)}<span>${label}</span>`;
+    const unavailable = item.available === false;
+    const badge = unavailable ? `<em class="item-badge">Indisponible${item.adminComment ? ` · ${escapeHtml(item.adminComment)}` : ""}</em>` : "";
+    const content = `${itemThumb(item.image)}<span>${label}${badge}</span>`;
+    const className = `item-chip${unavailable ? " is-unavailable" : ""}`;
     return item.link
-      ? `<a class="item-chip" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${content}<span class="item-chip-arrow" aria-hidden="true">↗</span></a>`
-      : `<span class="item-chip">${content}</span>`;
+      ? `<a class="${className}" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${content}<span class="item-chip-arrow" aria-hidden="true">↗</span></a>`
+      : `<span class="${className}">${content}</span>`;
   }).join("");
 }
 
@@ -790,6 +801,7 @@ function adminControls(order) {
       <strong>Reçu MoMo à vérifier</strong>
       <button class="button button-outline view-payment-proof" type="button" data-proof-order-id="${order.id}">Consulter le reçu</button>
       <button class="button button-primary verify-payment" type="button" data-verify-payment-id="${order.id}">Confirmer le paiement</button>
+      <button class="button button-outline button-danger" type="button" data-reject-payment-id="${order.id}">Refuser le reçu</button>
       ${order.paymentMethod ? `<span>Moyen : ${escapeHtml(order.paymentMethod)}</span>` : ""}
       ${order.paymentReference ? `<span>Transaction : ${escapeHtml(order.paymentReference)}</span>` : ""}
     </div>` : order.paymentStatus === "verified" ? '<div class="payment-verified">✓ Panier payé</div>' : "";
@@ -809,12 +821,27 @@ function adminControls(order) {
       </button>
       ${order.shippingEur ? `<button class="button button-outline" type="button" data-shipping-paid-id="${order.id}">Confirmer le paiement de l'expédition</button>` : ""}
     </div>` : "";
+  const actions = `<div class="admin-actions">
+      <button class="button button-outline" type="button" data-edit-order-id="${order.id}">Modifier</button>
+      ${order.cancelled
+        ? `<button class="button button-outline" type="button" data-restore-order-id="${order.id}">Rétablir</button>`
+        : order.status !== "livre" ? `<button class="button button-outline button-danger" type="button" data-cancel-order-id="${order.id}">Annuler</button>` : ""}
+      <button class="button button-outline button-danger" type="button" data-delete-order-id="${order.id}">Supprimer</button>
+    </div>`;
+  if (order.cancelled) {
+    return `<div class="admin-controls">
+      <div class="cancelled-box"><strong>Commande annulée</strong><span>${escapeHtml(order.cancelReason || "")}</span>
+        ${order.paymentStatus === "verified" ? "<span>Le client avait payé : pensez au remboursement MoMo.</span>" : ""}</div>
+      ${actions}
+    </div>`;
+  }
   return `<div class="admin-controls">
     ${quoteSection}${paymentSection}${shippingSection}
     ${order.shippingPaid ? '<div class="payment-verified">✓ Expédition payée</div>' : ""}
     <label class="admin-status-label">Suivi
       <select aria-label="Modifier le statut de la commande ${escapeHtml(order.reference)}" data-order-id="${order.id}">${statusOptions(order)}</select>
     </label>
+    ${actions}
   </div>`;
 }
 
@@ -833,18 +860,56 @@ function shippingPreviewText(weightKg) {
   return `${formatNumber(weight)} kg × ${AIR_RATE_EUR_PER_KG} € = ${formatEur(shipping)} = ${formatFcfa(toFcfa(shipping))}`;
 }
 
-function renderOrder(order, isAdmin) {
-  const items = renderItems(order);
-  if (!isAdmin) return renderTicket(order, items);
-  const date = new Date(`${order.createdAt.replace(" ", "T")}Z`).toLocaleDateString("fr-FR");
-  return `<article class="order-card admin-card">
-    <div>
-      <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span><span class="order-date">${date}</span><span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"} · ${shippingModeNames[order.shippingMode]}</span><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></div>
-      <div class="order-items">${items}</div>
-      <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
-        Tél. ${escapeHtml(order.phone)} · ${escapeHtml(order.location)}${order.notes ? `<br>Note : ${escapeHtml(order.notes)}` : ""}
-        ${order.subtotalEur ? `<br>Estimation client : ${escapeHtml(formatEur(order.subtotalEur))}` : ""}
+function linkHost(link) {
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    return "lien";
+  }
+}
+
+// Détail de ce que le client a demandé : chaque lien, la quantité, le prix indiqué et la disponibilité.
+function adminItemsTable(order) {
+  const quantity = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const unavailable = order.items.filter((item) => item.available === false).length;
+  const rows = order.items.map((item, index) => {
+    const off = item.available === false;
+    return `<li class="admin-item${off ? " is-unavailable" : ""}">
+      ${itemThumb(item.image)}
+      <div class="admin-item-body">
+        <strong>${index + 1}. ${escapeHtml(item.name)}</strong>
+        <span>Qté ${item.quantity || 1}${item.priceEur ? ` · ${escapeHtml(formatEur(item.priceEur))} l'unité (indiqué par le client)` : " · prix non indiqué"}</span>
+        ${off ? `<em class="item-badge">Indisponible${item.adminComment ? ` · ${escapeHtml(item.adminComment)}` : ""}</em>` : item.adminComment ? `<em class="item-comment">${escapeHtml(item.adminComment)}</em>` : ""}
       </div>
+      <a class="admin-item-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(linkHost(item.link))} ↗</a>
+    </li>`;
+  }).join("");
+  return `<div class="admin-items">
+    <div class="admin-items-head"><strong>Articles demandés</strong><span>${order.items.length} lien(s) · ${quantity} article(s)${unavailable ? ` · <b>${unavailable} indisponible(s)</b>` : ""}${order.subtotalEur ? ` · estimation client ${escapeHtml(formatEur(order.subtotalEur))}` : ""}</span></div>
+    <ol>${rows}</ol>
+  </div>`;
+}
+
+function renderOrder(order, isAdmin) {
+  if (isAdmin) return renderAdminCard(order);
+  return renderTicket(order, renderItems(order));
+}
+
+function renderAdminCard(order) {
+  const created = orderDate(order.createdAt);
+  const date = created ? created.toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const statusLabel = order.cancelled
+    ? '<span class="status" data-status="annule">Annulée</span>'
+    : `<span class="status" data-status="${order.status}">${statusNames[order.status]}</span>`;
+  return `<article class="order-card admin-card${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}">
+    <div>
+      <div class="order-top"><span class="order-id">Réf. ${escapeHtml(order.reference)}</span>${date ? `<span class="order-date">${escapeHtml(date)}</span>` : ""}<span class="order-destination">${order.destination === "benin" ? "Bénin" : "Togo"} · ${shippingModeNames[order.shippingMode]}</span>${statusLabel}</div>
+      ${adminItemsTable(order)}
+      <div class="admin-meta">Client : <strong>${escapeHtml(order.username)}</strong> · ${escapeHtml(order.customerName)}<br>
+        Tél. ${escapeHtml(order.phone)} · ${escapeHtml(order.location)}${order.notes ? `<br>Note du client : ${escapeHtml(order.notes)}` : ""}
+      </div>
+      ${order.adminNote ? `<div class="admin-note"><strong>Note interne</strong>${escapeHtml(order.adminNote)}</div>` : ""}
+      ${order.customerMessage ? `<div class="customer-message"><strong>Message affiché au client</strong>${escapeHtml(order.customerMessage)}</div>` : ""}
       <div class="cost-blocks">${quoteBreakdown(order)}${shippingBreakdown(order)}</div>
     </div>${adminControls(order)}
   </article>`;
@@ -873,14 +938,22 @@ function ticketStub(order) {
 function renderTicket(order, items) {
   const index = Math.max(0, statusOrder.indexOf(order.status));
   const progress = Math.round((index / (statusOrder.length - 1)) * 100);
-  const created = new Date(`${order.createdAt.replace(" ", "T")}Z`);
-  const shortDate = created.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
+  const created = orderDate(order.createdAt);
+  const shortDate = created ? created.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase() : "";
   const isBenin = order.destination === "benin";
   const delivered = order.status === "livre";
-  const stub = ticketStub(order);
+  const stub = order.cancelled
+    ? { label: "ANNULÉE", amount: "—", note: order.cancelReason }
+    : ticketStub(order);
   const costs = `${quoteBreakdown(order)}${shippingBreakdown(order)}`;
-  const foot = `${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}`;
-  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}" data-order-id="${order.id}" data-group="${delivered ? "delivered" : "active"}">
+  const canCancel = !order.cancelled && ["demande_recue", "devis_envoye"].includes(order.status)
+    && !["proof_received", "verified"].includes(order.paymentStatus);
+  const message = order.customerMessage && !order.cancelled
+    ? `<div class="customer-message"><strong>Message de votre assistant</strong>${escapeHtml(order.customerMessage)}</div>` : "";
+  const foot = order.cancelled
+    ? `<div class="cancelled-box"><strong>Commande annulée</strong><span>${escapeHtml(order.cancelReason || "")}</span></div>`
+    : `${message}${costs ? `<div class="cost-blocks">${costs}</div>` : ""}${paymentProofFormFor(order)}${shippingProofLink(order)}${canCancel ? `<button class="text-button cancel-own-order" type="button" data-cancel-own-id="${order.id}">Annuler cette demande</button>` : ""}`;
+  return `<article class="order-card ticket${delivered ? " is-delivered" : ""}${order.cancelled ? " is-cancelled" : ""}" data-order-id="${order.id}" data-group="${delivered ? "delivered" : "active"}">
     <div class="ticket-body">
       <div class="ticket-main">
         <header class="ticket-head">
@@ -898,7 +971,7 @@ function renderTicket(order, items) {
           <div class="route-point route-end"><small>ARRIVÉE</small><strong>${isBenin ? "BJ" : "TG"}</strong><span>${isBenin ? "Bénin" : "Togo"}</span></div>
         </div>
         <dl class="ticket-meta">
-          <div><dt>Statut</dt><dd><span class="status" data-status="${order.status}">${statusNames[order.status]}</span></dd></div>
+          <div><dt>Statut</dt><dd>${order.cancelled ? '<span class="status" data-status="annule">Annulée</span>' : `<span class="status" data-status="${order.status}">${statusNames[order.status]}</span>`}</dd></div>
           <div><dt>Articles</dt><dd>${order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</dd></div>
           <div><dt>Destinataire</dt><dd>${escapeHtml(order.customerName || "—")}</dd></div>
         </dl>
@@ -925,11 +998,12 @@ let lastCustomerOrdersHtml = "";
 function renderCustomerOrders() {
   const orders = customerOrdersCache;
   const delivered = orders.filter((order) => order.status === "livre").length;
+  const cancelled = orders.filter((order) => order.cancelled).length;
   $("#count-all").textContent = String(orders.length);
-  $("#count-active").textContent = String(orders.length - delivered);
+  $("#count-active").textContent = String(orders.length - delivered - cancelled);
   $("#count-delivered").textContent = String(delivered);
   const visible = orders.filter((order) => {
-    if (customerOrderFilter === "active") return order.status !== "livre";
+    if (customerOrderFilter === "active") return order.status !== "livre" && !order.cancelled;
     if (customerOrderFilter === "delivered") return order.status === "livre";
     return true;
   });
@@ -944,21 +1018,36 @@ function renderCustomerOrders() {
   $("#orders-list").innerHTML = html;
 }
 
+let adminOrderFilter = "todo";
+const adminFilters = {
+  todo: (order) => !order.cancelled && (order.status === "demande_recue" || order.paymentStatus === "proof_received"
+    || (order.status === "recu_france" && !order.shippingPaid)),
+  active: (order) => !order.cancelled && order.status !== "livre",
+  delivered: (order) => !order.cancelled && order.status === "livre",
+  cancelled: (order) => order.cancelled,
+  all: () => true
+};
+
 function renderAdminOrders() {
   const search = $("#admin-order-search").value.trim();
   const normalizedSearch = search.toLocaleLowerCase("fr");
   const phoneSearch = search.replace(/\D/g, "");
   const orders = adminOrdersCache.filter((order) => {
-    const matchesReference = order.reference.toLocaleLowerCase("fr").includes(normalizedSearch);
-    const matchesPhone = phoneSearch && order.phone.replace(/\D/g, "").includes(phoneSearch);
-    return matchesReference || matchesPhone;
+    if (!adminFilters[adminOrderFilter](order)) return false;
+    if (!normalizedSearch) return true;
+    const text = [order.reference, order.username, order.customerName, order.location, ...order.items.map((item) => item.name)]
+      .join(" ").toLocaleLowerCase("fr");
+    const matchesPhone = phoneSearch.length >= 3 && order.phone.replace(/\D/g, "").includes(phoneSearch);
+    return text.includes(normalizedSearch) || matchesPhone;
   });
-  $("#admin-search-results").textContent = search
-    ? `${orders.length} commande(s) trouvée(s) sur ${adminOrdersCache.length}.`
-    : `${adminOrdersCache.length} commande(s) au total.`;
+  document.querySelectorAll("[data-admin-filter]").forEach((button) => {
+    const count = button.querySelector("b");
+    if (count) count.textContent = String(adminOrdersCache.filter(adminFilters[button.dataset.adminFilter]).length);
+  });
+  $("#admin-search-results").textContent = `${orders.length} commande(s) affichée(s) sur ${adminOrdersCache.length}.`;
   const html = orders.length
     ? orders.map((order) => renderOrder(order, true)).join("")
-    : '<div class="empty-state">Aucune commande ne correspond à cette recherche.</div>';
+    : `<div class="empty-state">${adminOrderFilter === "todo" && !search ? "Rien à traiter pour le moment." : "Aucune commande ne correspond."}</div>`;
   if (html === lastAdminOrdersHtml || isEditingInside("#admin-orders")) return;
   lastAdminOrdersHtml = html;
   $("#admin-orders").innerHTML = html;
@@ -1010,9 +1099,10 @@ async function loadOrders() {
     const target = currentUser.role === "admin" ? $("#admin-orders") : $("#orders-list");
     if (currentUser.role === "admin") {
       adminOrdersCache = orders;
-      $("#admin-quotes-pending").textContent = String(orders.filter((order) => order.status === "demande_recue").length);
-      $("#admin-payments-pending").textContent = String(orders.filter((order) => order.paymentStatus === "proof_received").length);
-      $("#admin-orders-to-ship").textContent = String(orders.filter((order) => order.status === "recu_france").length);
+      const live = orders.filter((order) => !order.cancelled);
+      $("#admin-quotes-pending").textContent = String(live.filter((order) => order.status === "demande_recue").length);
+      $("#admin-payments-pending").textContent = String(live.filter((order) => order.paymentStatus === "proof_received").length);
+      $("#admin-orders-to-ship").textContent = String(live.filter((order) => order.status === "recu_france" && !order.shippingPaid).length);
       renderAdminOrders();
     } else {
       $("#home-order-count").textContent = String(orders.length);
@@ -1490,6 +1580,178 @@ $("#admin-orders").addEventListener("click", async (event) => {
     await loadOrders();
   } catch (error) {
     whatsappWindow.close();
+    window.alert(error.message);
+    button.disabled = false;
+  }
+});
+
+// --- Gestion admin : filtres, modification, annulation, suppression, refus de reçu ---
+document.querySelector(".admin-filters").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-filter]");
+  if (!button) return;
+  adminOrderFilter = button.dataset.adminFilter;
+  document.querySelectorAll("[data-admin-filter]").forEach((chip) => {
+    const active = chip === button;
+    chip.classList.toggle("active", active);
+    chip.setAttribute("aria-pressed", String(active));
+  });
+  lastAdminOrdersHtml = "";
+  renderAdminOrders();
+});
+
+let editingOrderId = null;
+
+function editItemRow(item = {}) {
+  const off = item.available === false;
+  return `<fieldset class="edit-item">
+    <div class="edit-item-head">
+      <strong>Article</strong>
+      <label class="edit-available"><input type="checkbox" name="available" ${off ? "" : "checked"}> Disponible</label>
+      <button class="text-button edit-remove-item" type="button">Retirer</button>
+    </div>
+    <label>Nom<input name="name" maxlength="120" value="${escapeHtml(item.name || "")}" placeholder="Nom de l'article"></label>
+    <label>Lien<input name="link" type="url" required maxlength="2000" value="${escapeHtml(item.link || "")}" placeholder="https://…"></label>
+    <div class="edit-row">
+      <label>Quantité<input name="quantity" type="number" min="1" max="99" step="1" required value="${item.quantity || 1}"></label>
+      <label>Prix unitaire (€)<input name="priceEur" type="number" min="0.01" step="0.01" value="${item.priceEur ?? ""}"></label>
+    </div>
+    <label>Commentaire (visible par le client)<input name="adminComment" maxlength="200" value="${escapeHtml(item.adminComment || "")}" placeholder="Ex. rupture de stock, taille épuisée…"></label>
+  </fieldset>`;
+}
+
+function openAdminEdit(order) {
+  editingOrderId = order.id;
+  $("#admin-edit-title").textContent = `Réf. ${order.reference}`;
+  $("#admin-edit-message").textContent = "";
+  const shippingLocked = order.shippingEur !== null && order.shippingEur !== undefined;
+  $("#admin-edit-fields").innerHTML = `
+    <h3 class="edit-section">Articles</h3>
+    <div id="edit-items">${order.items.map(editItemRow).join("")}</div>
+    <button id="edit-add-item" class="text-button" type="button">+ Ajouter un article</button>
+    <h3 class="edit-section">Livraison</h3>
+    <label>Destinataire<input name="customerName" required maxlength="100" value="${escapeHtml(order.customerName)}"></label>
+    <label>Téléphone<input name="phone" required maxlength="30" value="${escapeHtml(order.phone)}"></label>
+    <label>Adresse<textarea name="location" required maxlength="300" rows="2">${escapeHtml(order.location)}</textarea></label>
+    <div class="edit-row">
+      <label>Pays<select name="destination">
+        <option value="benin" ${order.destination === "benin" ? "selected" : ""}>Bénin</option>
+        <option value="togo" ${order.destination === "togo" ? "selected" : ""}>Togo</option>
+      </select></label>
+      <label>Expédition<select name="shippingMode" ${shippingLocked ? "disabled" : ""}>
+        <option value="avion" ${order.shippingMode === "avion" ? "selected" : ""}>Avion</option>
+        <option value="bateau" ${order.shippingMode === "bateau" ? "selected" : ""}>Bateau</option>
+      </select></label>
+    </div>
+    <h3 class="edit-section">Messages</h3>
+    <label>Message affiché au client<textarea name="customerMessage" maxlength="500" rows="2" placeholder="Ex. L'article 2 est en rupture, le montant a été ajusté.">${escapeHtml(order.customerMessage || "")}</textarea></label>
+    <label>Note interne (invisible pour le client)<textarea name="adminNote" maxlength="2000" rows="2" placeholder="Ex. remboursé 15 000 FCFA le 18/11, suivi colis…">${escapeHtml(order.adminNote || "")}</textarea></label>`;
+  $("#admin-edit").showModal();
+}
+
+$("#admin-edit-fields").addEventListener("click", (event) => {
+  if (event.target.closest("#edit-add-item")) {
+    $("#edit-items").insertAdjacentHTML("beforeend", editItemRow());
+    return;
+  }
+  const remove = event.target.closest(".edit-remove-item");
+  if (remove) {
+    if ($("#edit-items").children.length <= 1) {
+      $("#admin-edit-message").textContent = "Une commande garde au moins un article : annulez-la plutôt.";
+      return;
+    }
+    remove.closest(".edit-item").remove();
+  }
+});
+$("#admin-edit-cancel").addEventListener("click", () => $("#admin-edit").close());
+$("#admin-edit-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  const field = (name) => form.querySelector(`[name=${name}]`);
+  const items = [...form.querySelectorAll(".edit-item")].map((row) => ({
+    name: row.querySelector("[name=name]").value,
+    link: row.querySelector("[name=link]").value,
+    quantity: Number(row.querySelector("[name=quantity]").value),
+    priceEur: row.querySelector("[name=priceEur]").value ? Number(row.querySelector("[name=priceEur]").value) : null,
+    available: row.querySelector("[name=available]").checked,
+    adminComment: row.querySelector("[name=adminComment]").value
+  }));
+  const body = {
+    items,
+    customerName: field("customerName").value,
+    phone: field("phone").value,
+    location: field("location").value,
+    destination: field("destination").value,
+
+    customerMessage: field("customerMessage").value,
+    adminNote: field("adminNote").value
+  };
+  if (!field("shippingMode").disabled) body.shippingMode = field("shippingMode").value;
+  const submit = form.querySelector("button[type=submit]");
+  submit.disabled = true;
+  $("#admin-edit-message").textContent = "Enregistrement…";
+  try {
+    await api(`/api/orders/${editingOrderId}`, { method: "PATCH", body: JSON.stringify(body) });
+    $("#admin-edit").close();
+    lastAdminOrdersHtml = "";
+    await loadOrders();
+  } catch (error) {
+    $("#admin-edit-message").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+$("#admin-orders").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-edit-order-id], [data-cancel-order-id], [data-restore-order-id], [data-delete-order-id], [data-reject-payment-id]");
+  if (!button) return;
+  const id = button.dataset.editOrderId || button.dataset.cancelOrderId || button.dataset.restoreOrderId
+    || button.dataset.deleteOrderId || button.dataset.rejectPaymentId;
+  const order = adminOrdersCache.find((candidate) => String(candidate.id) === id);
+  if (!order) return;
+  if (button.dataset.editOrderId) {
+    openAdminEdit(order);
+    return;
+  }
+  let request;
+  if (button.dataset.cancelOrderId) {
+    const reason = window.prompt(`Motif d'annulation de ${order.reference} (visible par le client) :`, "Articles indisponibles");
+    if (reason === null) return;
+    request = [`/api/orders/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }];
+  } else if (button.dataset.restoreOrderId) {
+    request = [`/api/orders/${id}/restore`, { method: "POST", body: "{}" }];
+  } else if (button.dataset.deleteOrderId) {
+    const warning = order.paymentStatus === "verified"
+      ? "\n\nAttention : cette commande a été payée. Préférez « Annuler » pour garder une trace."
+      : "";
+    if (!window.confirm(`Supprimer définitivement la commande ${order.reference} ? Cette action est irréversible.${warning}`)) return;
+    request = [`/api/orders/${id}`, { method: "DELETE" }];
+  } else {
+    const reason = window.prompt("Pourquoi refuser ce reçu ? (le client verra ce message)", "le montant ne correspond pas");
+    if (reason === null) return;
+    request = [`/api/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ paymentStatus: "rejected", reason }) }];
+  }
+  button.disabled = true;
+  try {
+    await api(...request);
+    lastAdminOrdersHtml = "";
+    await loadOrders();
+  } catch (error) {
+    window.alert(error.message);
+    button.disabled = false;
+  }
+});
+
+// Le client peut annuler sa demande tant qu'il n'a rien payé.
+$("#orders-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-cancel-own-id]");
+  if (!button) return;
+  if (!window.confirm("Annuler cette demande ? Votre assistant en sera informé.")) return;
+  button.disabled = true;
+  try {
+    await api(`/api/orders/${button.dataset.cancelOwnId}/cancel`, { method: "POST", body: "{}" });
+    await loadOrders();
+  } catch (error) {
     window.alert(error.message);
     button.disabled = false;
   }
