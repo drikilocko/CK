@@ -282,6 +282,16 @@ async function ensureAdmin() {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8mb" }));
+// Diagnostic : indique si la configuration et la base sont prêtes (aucune donnée sensible renvoyée).
+app.get("/api/health", async (_req, res) => {
+  try {
+    await initializeServer();
+    res.json({ ok: true });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
 // Seule l'API dépend de Supabase : les pages et fichiers statiques restent servis même si la base n'est pas prête.
 app.use("/api", (req, res, next) => {
   initializeServer().then(() => next()).catch(next);
