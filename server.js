@@ -240,7 +240,13 @@ function initializeServer() {
   if (!initialization) {
     initialization = verifySupabaseConfig()
       .then(checkSupabaseTables)
-      .then(ensureAdmin);
+      .then(ensureAdmin)
+      .catch((error) => {
+        // On réessaie à la requête suivante (ex. après avoir exécuté le SQL) au lieu de rester bloqué.
+        initialization = null;
+        error.isSetupError = true;
+        throw error;
+      });
   }
   return initialization;
 }
@@ -276,7 +282,8 @@ async function ensureAdmin() {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8mb" }));
-app.use((req, res, next) => {
+// Seule l'API dépend de Supabase : les pages et fichiers statiques restent servis même si la base n'est pas prête.
+app.use("/api", (req, res, next) => {
   initializeServer().then(() => next()).catch(next);
 });
 app.use("/maplibre", express.static(path.join(ROOT, "node_modules", "maplibre-gl", "dist")));
@@ -872,6 +879,9 @@ app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res, 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Route API introuvable." }));
 app.use((error, _req, res, _next) => {
   console.error(error);
+  if (error.isSetupError) {
+    return res.status(503).json({ error: `Service indisponible : ${error.message}`, setup: true });
+  }
   res.status(500).json({ error: "Une erreur interne est survenue." });
 });
 

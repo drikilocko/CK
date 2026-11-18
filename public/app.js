@@ -62,8 +62,13 @@ async function api(url, options = {}) {
     ...options,
     headers: { "Content-Type": "application/json", ...(options.headers || {}) }
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Une erreur est survenue.");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || "Une erreur est survenue.");
+    error.status = response.status;
+    error.setup = Boolean(data.setup);
+    throw error;
+  }
   return data;
 }
 
@@ -1514,4 +1519,7 @@ if (isAdminRoute) {
 
 api("/api/me").then(({ user }) => {
   if (!isAdminRoute || user.role === "admin") showApp(user);
-}).catch(() => {}).finally(hidePreloader);
+}).catch((error) => {
+  // Serveur mal configuré (ex. base non mise à jour) : on l'affiche au lieu d'échouer en silence.
+  if (error.setup) $("#auth-message").textContent = error.message;
+}).finally(hidePreloader);

@@ -1309,6 +1309,30 @@ body.auth-screen .auth-panel { margin: 0; }
   .nav-collapse { display: none; }
 }
 
+/* Icône d'appel toujours en bout de barre ; menu des numéros entièrement visible sur mobile */
+.header-actions .account-bar { order: 1; }
+.header-actions .contact-menu-wrap { order: 2; }
+.contact-menu > a { min-height: 56px; }
+@media (max-width: 760px) {
+  .header-actions { gap: 10px; }
+  .account-bar { gap: 10px; }
+  .contact-menu {
+    position: fixed;
+    z-index: 1600;
+    top: calc(84px + env(safe-area-inset-top));
+    right: 14px;
+    left: 14px;
+    width: auto;
+    padding: 12px;
+    border-radius: 6px 22px 6px 22px;
+    box-shadow: 0 24px 60px #21114d40;
+    animation: page-in .3s var(--ease-out) both;
+  }
+  .contact-menu > a { padding: 12px; }
+  .contact-menu strong { font-size: 15px; }
+  .contact-menu small { font-size: 13px; color: #4a3f6b; }
+}
+
 /* Choix du pays à l'inscription */
 .country-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; padding: 0; border: 0; }
 .country-choice legend { margin-bottom: 8px; padding: 0; color: var(--muted); font-size: 12px; font-weight: 600; }
