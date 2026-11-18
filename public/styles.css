@@ -1331,6 +1331,11 @@ body.auth-screen .auth-panel { margin: 0; }
 
 /* Les fieldset refusent par défaut de rétrécir sous leur contenu : ils faisaient déborder le formulaire */
 fieldset { min-width: 0; }
+/* Boutons radio et cases à cocher : jamais en pleine largeur. Les radios cachés des cartes restent
+   ancrés dans leur carte au lieu de déborder de la page (ils élargissaient l'écran sur mobile). */
+input[type="radio"], input[type="checkbox"] { width: auto; }
+.shipping-mode, .country-choice label { position: relative; }
+.shipping-mode input, .country-choice input { top: 0; left: 0; width: 1px; height: 1px; margin: 0; }
 
 @media (max-width: 760px) {
   /* 16 px minimum : l'iPhone ne zoome plus automatiquement en touchant un champ */
