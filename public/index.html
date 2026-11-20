@@ -187,26 +187,26 @@
           <div class="home-hero hero-v2">
             <span class="hero-ring hero-ring-a" aria-hidden="true"></span>
             <span class="hero-ring hero-ring-b" aria-hidden="true"></span>
-            <div class="hero-switch" role="tablist" aria-label="Mode d'expédition">
-              <button class="hero-switch-option active" type="button" role="tab" aria-selected="true" data-hero-mode="avion">Avion</button>
-              <button class="hero-switch-option" type="button" role="tab" aria-selected="false" data-hero-mode="bateau">Bateau</button>
+            <div class="hero-switch" role="tablist" aria-label="Pays de livraison">
+              <button class="hero-switch-option active" type="button" role="tab" aria-selected="true" data-hero-country="benin">🇧🇯 Bénin</button>
+              <button class="hero-switch-option" type="button" role="tab" aria-selected="false" data-hero-country="togo">🇹🇬 Togo</button>
             </div>
             <p class="hero-greeting">Bonjour, <span id="welcome-name"></span> 👋</p>
             <h1>Vos achats en France, livrés au Bénin et au Togo</h1>
-            <p id="hero-mode-detail" class="hero-mode-detail"><svg aria-hidden="true"><use href="#i-plane"/></svg><span>Avion · 15 € par kilo · le plus rapide</span></p>
+            <p id="hero-mode-detail" class="hero-mode-detail"><svg aria-hidden="true"><use href="#i-pin"/></svg><span>Livraison partout au Bénin · assistant +229 01 97 15 84 84</span></p>
             <button class="button button-primary home-cta" type="button" data-page-link="order">＋ Envoyer mes liens</button>
           </div>
 
           <section class="services-section" aria-labelledby="services-title">
             <h2 id="services-title" class="services-title">Nos services</h2>
             <div class="service-grid service-grid-two">
-              <button class="service-card" type="button" data-page-link="order" data-ship-mode="avion">
-                <span class="service-banner service-banner-air"><svg class="service-icon" aria-hidden="true"><use href="#i-plane"/></svg><span class="service-mark">AVION</span></span>
-                <span class="service-body"><strong>Par avion</strong><span>15 € par kilo · le plus rapide</span><i class="service-go" aria-hidden="true">›</i></span>
+              <button class="service-card" type="button" data-page-link="order" data-ship-country="benin">
+                <span class="service-banner service-banner-benin"><span class="service-mark">BÉNIN</span></span>
+                <span class="service-body"><strong>Livraison au Bénin</strong><span>Cotonou, Porto-Novo, Parakou…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
-              <button class="service-card" type="button" data-page-link="order" data-ship-mode="bateau">
-                <span class="service-banner service-banner-sea"><svg class="service-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="service-mark">BATEAU</span></span>
-                <span class="service-body"><strong>Par bateau</strong><span>Tarif selon les produits</span><i class="service-go" aria-hidden="true">›</i></span>
+              <button class="service-card" type="button" data-page-link="order" data-ship-country="togo">
+                <span class="service-banner service-banner-togo"><span class="service-mark">TOGO</span></span>
+                <span class="service-body"><strong>Livraison au Togo</strong><span>Lomé, Kara, Sokodé…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
             </div>
           </section>
@@ -411,14 +411,17 @@
                   </span>
                 </label>
               </fieldset>
-              <div class="order-grid">
-                <label>Pays de livraison
-                  <select name="destination" required>
-                    <option value="benin">Bénin</option>
-                    <option value="togo">Togo</option>
-                  </select>
+              <fieldset class="shipping-modes destination-choice">
+                <legend>Pays de livraison</legend>
+                <label class="shipping-mode">
+                  <input type="radio" name="destination" value="benin" checked>
+                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true">🇧🇯</span><strong>Bénin</strong><span>Cotonou, Porto-Novo…</span></span>
                 </label>
-              </div>
+                <label class="shipping-mode">
+                  <input type="radio" name="destination" value="togo">
+                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true">🇹🇬</span><strong>Togo</strong><span>Lomé, Kara…</span></span>
+                </label>
+              </fieldset>
             </section>
 
             <section class="checkout-step" data-checkout-step="4" hidden>

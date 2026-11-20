@@ -223,6 +223,19 @@ function addProductRow() {
 }
 
 const CHECKOUT_STEPS = 5;
+let countryChosenOnHome = false;
+
+// Pays de livraison : deux cartes (boutons radio) à l'étape 3.
+function getDestination() {
+  return document.querySelector("#order-form [name=destination]:checked")?.value || "benin";
+}
+
+function setDestination(country, { silent = false } = {}) {
+  const radio = document.querySelector(`#order-form [name=destination][value="${country}"]`);
+  if (!radio || radio.checked) return;
+  radio.checked = true;
+  if (!silent) radio.dispatchEvent(new Event("change", { bubbles: true }));
+}
 let deliveryStepSkipped = false;
 
 // Dernière livraison du client (commande la plus récente non annulée) : réutilisée sans la redemander.
@@ -234,7 +247,7 @@ function savedDelivery() {
 function prefillDeliveryFields() {
   const form = $("#order-form");
   const saved = savedDelivery();
-  const destination = form.querySelector("[name=destination]").value;
+  const destination = getDestination();
   if (!form.querySelector("[name=customerName]").value) {
     form.querySelector("[name=customerName]").value = saved?.customerName || currentUser?.username || "";
   }
@@ -248,7 +261,7 @@ function prefillDeliveryFields() {
 function applySavedDelivery() {
   const saved = savedDelivery();
   const form = $("#order-form");
-  if (!saved || saved.destination !== form.querySelector("[name=destination]").value) return false;
+  if (!saved || saved.destination !== getDestination()) return false;
   const name = form.querySelector("[name=customerName]");
   const phone = form.querySelector("[name=phone]");
   const location = form.querySelector("[name=location]");
@@ -334,7 +347,7 @@ function assistantLabelFor(country) {
 }
 
 function destinationMapCenter() {
-  const destination = $("#order-form [name=destination]").value;
+  const destination = getDestination();
   return (countryCenters[destination] || countryCenters[userCountry()]).center;
 }
 
@@ -1357,7 +1370,8 @@ function showApp(user) {
     if ($("#product-list").children.length === 0) addProductRow();
     // Destination présélectionnée selon le pays de la personne (modifiable dans le formulaire).
     if (!$("#order-form [name=location]").value) {
-      $("#order-form [name=destination]").value = userCountry();
+      if (!countryChosenOnHome) setDestination(userCountry(), { silent: true });
+      showHeroCountry(getDestination());
     }
     $("#whatsapp-float").href = `https://wa.me/${whatsappNumberFor(userCountry())}?text=${encodeURIComponent("Bonjour, j'ai une question sur ma commande Speed Shopping.")}`;
     if (!openOrderFromHash()) {
@@ -1488,8 +1502,8 @@ $("#logout-button").addEventListener("click", async () => {
 
 $("#customer-view").addEventListener("click", (event) => {
   const button = event.target.closest("[data-page-link]");
-  const mode = event.target.closest("[data-ship-mode]")?.dataset.shipMode;
-  if (mode) document.querySelector(`[data-hero-mode="${mode}"]`)?.click();
+  const country = event.target.closest("[data-ship-country]")?.dataset.shipCountry;
+  if (country) chooseCountryFromHome(country);
   if (button) showCustomerPage(button.dataset.pageLink);
 });
 $("#admin-order-search").addEventListener("input", renderAdminOrders);
@@ -1573,7 +1587,6 @@ $("#map-modal").addEventListener("keydown", (event) => {
 $("#next-step").addEventListener("click", () => {
   if (checkoutStep === 1 && !validateLinks()) return;
   if (checkoutStep === 2 && !validateProducts()) return;
-  if (checkoutStep === 3 && !$("#order-form [name=destination]").reportValidity()) return;
   if (checkoutStep === 3 && applySavedDelivery()) {
     deliveryStepSkipped = true;
     setCheckoutStep(5);
@@ -1609,7 +1622,7 @@ $("#confirm-quote-request").addEventListener("click", () => {
 $("#product-list").addEventListener("input", (event) => {
   if (event.target.matches(".product-price, .product-quantity")) refreshQuote();
 });
-$("#order-form [name=destination]").addEventListener("change", () => {
+$("#order-form .destination-choice").addEventListener("change", () => {
   refreshQuote();
   $("#order-form [name=location]").value = "";
   $("#map-latitude").value = "";
@@ -1660,7 +1673,7 @@ $("#order-form").addEventListener("submit", async (event) => {
       if (image.src.startsWith("blob:")) URL.revokeObjectURL(image.src);
     });
     $("#order-form").reset();
-    $("#order-form [name=destination]").value = userCountry();
+    setDestination(countryChosenOnHome ? getDestination() : userCountry(), { silent: true });
     $("#map-latitude").value = "";
     $("#map-longitude").value = "";
     $("#location-coordinates").textContent = "";
@@ -2071,22 +2084,27 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && openAdminSheetId !== null && !$("#admin-edit").open) setAdminSheet(null);
 });
 
-// Accueil : sélecteur Avion / Bateau ; le mode choisi est présélectionné dans le formulaire.
-const heroModes = {
-  avion: { icon: "#i-plane", text: "Avion · 15 € par kilo · le plus rapide" },
-  bateau: { icon: "#i-box", text: "Bateau · tarif selon les produits · idéal pour les gros colis" }
+// Accueil : choix du pays (Bénin / Togo). Une fois choisi ici, il n'est plus redemandé dans la commande.
+const heroCountries = {
+  benin: "Livraison partout au Bénin · assistant +229 01 97 15 84 84",
+  togo: "Livraison partout au Togo · assistant +228 90 29 00 81"
 };
-document.querySelector(".hero-switch").addEventListener("click", (event) => {
-  const option = event.target.closest("[data-hero-mode]");
-  if (!option) return;
-  const mode = option.dataset.heroMode;
-  document.querySelectorAll("[data-hero-mode]").forEach((button) => {
-    const active = button === option;
+function showHeroCountry(country) {
+  document.querySelectorAll("[data-hero-country]").forEach((button) => {
+    const active = button.dataset.heroCountry === country;
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
   });
-  $("#hero-mode-detail use").setAttribute("href", heroModes[mode].icon);
-  $("#hero-mode-detail span").textContent = heroModes[mode].text;
-  const radio = document.querySelector(`#order-form [name=shippingMode][value="${mode}"]`);
-  if (radio) radio.checked = true;
+  $("#hero-mode-detail span").textContent = heroCountries[country];
+}
+function chooseCountryFromHome(country) {
+  countryChosenOnHome = true;
+  setDestination(country);
+  showHeroCountry(country);
+  $("#order-form").classList.add("country-locked");
+}
+document.querySelector(".hero-switch").addEventListener("click", (event) => {
+  const option = event.target.closest("[data-hero-country]");
+  if (option) chooseCountryFromHome(option.dataset.heroCountry);
 });
+showHeroCountry(getDestination());

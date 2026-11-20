@@ -1712,3 +1712,13 @@ body.auth-screen .topbar { background: var(--chrome); }
 }
 .review-delivery { position: relative; }
 .review-edit { position: absolute; top: 10px; right: 10px; padding: 0; border: 0; background: none; color: var(--royal); font-size: 12px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* Accueil : Bénin / Togo */
+.service-banner-benin { background: linear-gradient(90deg, #008751 0 38%, transparent 38%), linear-gradient(180deg, #fcd116 0 50%, #e8112d 50%); }
+.service-banner-togo { background: linear-gradient(90deg, #d21034 0 34%, transparent 34%), repeating-linear-gradient(180deg, #006a4e 0 20%, #ffce00 20% 40%); }
+.service-banner-benin .service-mark, .service-banner-togo .service-mark { padding: 4px 12px; border-radius: 10px; background: #0b1850cc; font-style: normal; letter-spacing: 2px; }
+.service-banner-benin::after, .service-banner-togo::after { display: none; }
+/* Étape 3 : pays en petites cartes, masquées si le pays a été choisi sur l'accueil */
+.country-card { align-items: flex-start; }
+.country-flag { font-size: 24px; line-height: 1; }
+#order-form.country-locked .destination-choice { display: none; }
