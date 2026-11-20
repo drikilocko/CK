@@ -2104,7 +2104,7 @@ function showHeroCountry(country) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
   });
-  $("#hero-mode-detail span").textContent = heroCountries[country];
+
 }
 function chooseCountryFromHome(country) {
   countryChosenOnHome = true;
@@ -2112,7 +2112,7 @@ function chooseCountryFromHome(country) {
   showHeroCountry(country);
   $("#order-form").classList.add("country-locked");
 }
-document.querySelector(".hero-switch").addEventListener("click", (event) => {
+document.querySelector(".hero-switch")?.addEventListener("click", (event) => {
   const option = event.target.closest("[data-hero-country]");
   if (!option) return;
   chooseCountryFromHome(option.dataset.heroCountry);

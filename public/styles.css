@@ -1765,3 +1765,10 @@ svg.flag { display: inline-block; width: 1.5em; height: 1em; flex: 0 0 auto; bor
 /* Panneau Avion / Bateau : mêmes cartes que Bénin / Togo, côte à côte */
 .ship-sheet-options.service-grid-two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ship-sheet-options .service-card.is-current { border-color: var(--royal); box-shadow: 0 0 0 2px var(--royal), 0 12px 28px #0b185014; }
+
+/* Accueil mobile : l'en-tête bleu remonte jusqu'en haut de l'écran, le header détaché flotte dessus */
+@media (max-width: 760px) {
+  .home-hero.hero-v2 { margin-top: -100px; padding-top: 122px; border-radius: 0 0 30px 30px; box-shadow: none; }
+}
+@media (max-width: 760px) { .home-hero.hero-v2 { margin-right: -18px; margin-left: -18px; } }
+@media (max-width: 380px) { .home-hero.hero-v2 { margin-right: -14px; margin-left: -14px; } }
