@@ -1836,3 +1836,13 @@ svg.flag { display: inline-block; width: 1.5em; height: 1em; flex: 0 0 auto; bor
 .preloader-landing { fill: #e4252c; filter: drop-shadow(0 0 5px #e4252c88); }
 .preloader-plane { color: #1c3192; filter: drop-shadow(0 3px 6px #1c319240); }
 .preloader-tagline { color: #4a5677; }
+
+/* Préchargeur : nuances bleu marine et rouge bien visibles sur fond blanc */
+.preloader {
+  background:
+    radial-gradient(70% 50% at 0% 0%, #1c319259 0%, #1c319214 45%, transparent 75%),
+    radial-gradient(70% 50% at 100% 100%, #e4252c66 0%, #e4252c1c 45%, transparent 75%),
+    radial-gradient(45% 35% at 100% 0%, #e4252c26 0%, transparent 70%),
+    radial-gradient(45% 35% at 0% 100%, #1c319233 0%, transparent 70%),
+    linear-gradient(160deg, #eef2ff 0%, #ffffff 45%, #ffffff 55%, #fff1f1 100%);
+}
