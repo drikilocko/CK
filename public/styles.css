@@ -1627,3 +1627,50 @@ body.auth-screen .intro > .intro-eiffel { position: absolute; }
 .home-hero.hero-v2 > .hero-ring { position: absolute; }
 @media (min-width: 900px) { .service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 body:has(#customer-page-order:not([hidden])) .whatsapp-float { display: none; }
+
+/* Accueil : deux services seulement, avion et bateau */
+.service-grid.service-grid-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.service-banner-air { background: linear-gradient(135deg, #3a68f0, #1f43cf); }
+.service-banner-sea { background: linear-gradient(135deg, #142a85, #0b1850); }
+.service-banner { gap: 4px; align-content: center; }
+.service-icon { position: relative; z-index: 1; width: 30px; height: 30px; color: #fff; }
+.service-banner-air .service-icon { color: #ffd2d4; }
+.service-grid-two .service-mark { font-size: 22px; letter-spacing: 1px; }
+@media (min-width: 900px) { .service-grid.service-grid-two .service-banner { height: 120px; } }
+
+/* ======= Boutons : bleu pour les actions, rouge réservé aux suppressions ======= */
+:root { --chrome: #1d3fb8; --chrome-2: #2f5ae0; }
+.button-primary { border-color: var(--royal); background: var(--royal); color: #fff; }
+.button-primary:hover { border-color: #2a52e0; background: #2a52e0; color: #fff; }
+.button-primary:disabled { opacity: .6; }
+/* Sur fond bleu, le bouton principal passe en blanc */
+.home-hero .home-cta, .hero-v2 .home-cta { border-color: #fff; background: #fff; color: var(--royal); box-shadow: 0 12px 26px #0b185040; }
+.home-hero .home-cta:hover, .hero-v2 .home-cta:hover { background: #eef3ff; color: var(--royal); }
+.filter-chip.active b { background: #fff; color: var(--night); }
+.ticket-date, .order-success-icon, .confirmation-icon, .home-card-icon { background: var(--royal); color: #fff; }
+.customer-nav .nav-link.active .nav-icon { color: var(--royal); }
+.nav-link.active .nav-icon { color: #fff; }
+.nav-indicator::after { background: #fff; }
+.hero-mode-detail svg { color: #fff; }
+.service-banner-air .service-icon { color: #fff; }
+@keyframes new-ticket { 0%, 100% { box-shadow: 0 14px 34px #0b18501a; } 50% { box-shadow: 0 0 0 4px var(--sky), 0 18px 40px #0b185033; } }
+
+/* ======= Bleu de l'en-tête, du préchargeur et des barres de navigation : plus clair ======= */
+.topbar { background: var(--chrome); }
+body.auth-screen .topbar { background: var(--chrome); }
+.preloader {
+  background:
+    radial-gradient(90% 55% at 50% 0%, #4a78ff 0%, transparent 70%),
+    linear-gradient(180deg, #1a3aa8 0%, #1f43cf 50%, #3a68f0 100%);
+}
+@media (max-width: 760px) {
+  .customer-nav { background: #1d3fb8f2; box-shadow: 0 18px 40px #1d3fb859; }
+}
+@media (min-width: 1100px) {
+  .customer-nav { background: linear-gradient(180deg, var(--chrome) 0%, var(--chrome-2) 100%); }
+  .customer-nav .nav-link { color: #e1e9ff; }
+}
+@media (min-width: 901px) {
+  body.auth-screen .topbar { background: transparent; }
+}
+@media (max-width: 1099px) { .customer-nav .nav-link.active .nav-icon { color: #fff; } }

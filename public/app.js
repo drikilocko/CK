@@ -1272,7 +1272,7 @@ async function loadOrders() {
       $("#admin-orders-to-ship").textContent = String(live.filter((order) => order.status === "recu_france" && !order.shippingPaid).length);
       renderAdminOrders();
     } else {
-      $("#home-order-count").textContent = String(orders.length);
+      if ($("#home-order-count")) $("#home-order-count").textContent = String(orders.length);
       customerOrdersCache = orders;
       renderCustomerOrders();
       focusPendingOrder();
@@ -1451,6 +1451,8 @@ $("#logout-button").addEventListener("click", async () => {
 
 $("#customer-view").addEventListener("click", (event) => {
   const button = event.target.closest("[data-page-link]");
+  const mode = event.target.closest("[data-ship-mode]")?.dataset.shipMode;
+  if (mode) document.querySelector(`[data-hero-mode="${mode}"]`)?.click();
   if (button) showCustomerPage(button.dataset.pageLink);
 });
 $("#admin-order-search").addEventListener("input", renderAdminOrders);
