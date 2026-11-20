@@ -1846,3 +1846,23 @@ svg.flag { display: inline-block; width: 1.5em; height: 1em; flex: 0 0 auto; bor
     radial-gradient(45% 35% at 0% 100%, #1c319233 0%, transparent 70%),
     linear-gradient(160deg, #eef2ff 0%, #ffffff 45%, #ffffff 55%, #fff1f1 100%);
 }
+
+/* Accueil : photo de la cliente avec ses achats */
+.hero-v2 > .hero-photo { position: absolute; z-index: 0; right: 2%; bottom: 0; width: auto; height: 118%; max-width: 46%; object-fit: contain; object-position: right bottom; pointer-events: none; filter: drop-shadow(0 18px 30px #0b185066); animation: photo-in .9s var(--ease-out) .15s both; }
+.hero-v2 h1, .hero-v2 .hero-greeting, .hero-v2 .hero-mode-detail { max-width: min(640px, 56%); }
+@keyframes photo-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@media (max-width: 760px) {
+  .hero-v2 > .hero-photo { right: -8px; height: 78%; max-width: 50%; }
+  .hero-v2 h1 { max-width: 64%; font-size: clamp(24px, 6.6vw, 30px); }
+  .hero-v2 .hero-greeting, .hero-v2 .hero-mode-detail { max-width: 64%; }
+}
+
+/* Photo de l'accueil en fond, opacité réduite, le texte reprend toute la largeur */
+.hero-v2 > .hero-photo { right: 0; height: 125%; max-width: 60%; opacity: .32; filter: saturate(.9); animation: photo-bg-in 1s var(--ease-out) .15s both; }
+@keyframes photo-bg-in { from { opacity: 0; transform: translateY(20px); } to { opacity: .32; transform: none; } }
+.hero-v2 h1, .hero-v2 .hero-greeting, .hero-v2 .hero-mode-detail { max-width: 640px; }
+@media (max-width: 760px) {
+  .hero-v2 > .hero-photo { right: -12px; height: 92%; max-width: 72%; }
+  .hero-v2 h1 { max-width: none; font-size: clamp(27px, 7.4vw, 34px); }
+  .hero-v2 .hero-greeting, .hero-v2 .hero-mode-detail { max-width: none; }
+}
