@@ -1692,3 +1692,21 @@ body.auth-screen .topbar { background: var(--chrome); }
 @media (min-width: 901px) {
   body.auth-screen .topbar { background: transparent; }
 }
+
+/* ======= Bleu marine de l'affiche « Nouveauté » ======= */
+:root { --chrome-gradient: linear-gradient(180deg, #2a42a6 0%, #1c3192 55%, #15277c 100%); }
+.topbar, body.auth-screen .topbar { background: var(--chrome-gradient); }
+.preloader {
+  background:
+    radial-gradient(90% 55% at 50% 0%, #3a54c266 0%, transparent 70%),
+    linear-gradient(180deg, #15277c 0%, #1c3192 50%, #2a42a6 100%);
+}
+@media (max-width: 760px) {
+  .customer-nav { background: linear-gradient(180deg, #2a42a6f2 0%, #1c3192f2 55%, #15277cf2 100%); }
+}
+@media (min-width: 1100px) {
+  .customer-nav { background: linear-gradient(180deg, #2a42a6 0%, #1c3192 50%, #15277c 100%); }
+}
+@media (min-width: 901px) {
+  body.auth-screen .topbar { background: transparent; }
+}
