@@ -2122,7 +2122,8 @@ showHeroCountry(getDestination());
 
 // Panneau du bas : après le pays, le client choisit avion ou bateau, puis la commande s'ouvre sans l'étape Expédition.
 function openShipSheet(country) {
-  $("#ship-sheet-country").textContent = country === "togo" ? "🇹🇬 Livraison au Togo" : "🇧🇯 Livraison au Bénin";
+  $("#ship-sheet-country use").setAttribute("href", country === "togo" ? "#flag-tg" : "#flag-bj");
+  $("#ship-sheet-country span").textContent = country === "togo" ? "Livraison au Togo" : "Livraison au Bénin";
   const current = document.querySelector("#order-form [name=shippingMode]:checked")?.value;
   document.querySelectorAll("[data-sheet-mode]").forEach((button) => {
     button.classList.toggle("is-current", shippingChosenOnHome && button.dataset.sheetMode === current);

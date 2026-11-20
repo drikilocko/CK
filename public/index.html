@@ -10,6 +10,8 @@
 </head>
 <body class="auth-screen">
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="flag-bj" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid slice"><rect width="900" height="600" fill="#E8112D"/><rect width="900" height="300" fill="#FCD116"/><rect width="360" height="600" fill="#008751"/></symbol>
+    <symbol id="flag-tg" viewBox="0 0 809 500" preserveAspectRatio="xMidYMid slice"><rect width="809" height="500" fill="#006A4E"/><rect y="100" width="809" height="100" fill="#FFCE00"/><rect y="300" width="809" height="100" fill="#FFCE00"/><rect width="300" height="300" fill="#D21034"/><polygon fill="#fff" points="150.0,70.0 168.0,125.3 226.1,125.3 179.1,159.4 197.0,214.7 150.0,180.6 103.0,214.7 120.9,159.4 73.9,125.3 132.0,125.3"/></symbol>
     <symbol id="i-plane" viewBox="0 0 24 24"><g transform="rotate(90 12 12)"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"/></g></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.5Z"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="6"/><path d="M12 8v8M8 12h8"/></g></symbol>
@@ -73,12 +75,12 @@
         <div id="contact-menu" class="contact-menu" role="menu" aria-label="Choisir le pays" hidden>
           <p>Contacter Speed Shopping sur WhatsApp</p>
           <a role="menuitem" href="https://wa.me/2290197158484?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20Speed%20Shopping." target="_blank" rel="noopener noreferrer">
-            <span class="contact-country-flag" aria-hidden="true">🇧🇯</span>
+            <span class="contact-country-flag" aria-hidden="true"><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg></span>
             <span><strong>Bénin</strong><small>+229 01 97 15 84 84</small></span>
             <span class="contact-menu-arrow" aria-hidden="true">↗</span>
           </a>
           <a role="menuitem" href="https://wa.me/22890290081?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20Speed%20Shopping." target="_blank" rel="noopener noreferrer">
-            <span class="contact-country-flag" aria-hidden="true">🇹🇬</span>
+            <span class="contact-country-flag" aria-hidden="true"><svg class="flag" aria-hidden="true"><use href="#flag-tg"/></svg></span>
             <span><strong>Togo</strong><small>+228 90 29 00 81</small></span>
             <span class="contact-menu-arrow" aria-hidden="true">↗</span>
           </a>
@@ -154,8 +156,8 @@
           </div>
           <fieldset id="signup-country" class="country-choice" hidden>
             <legend>Votre pays</legend>
-            <label><input type="radio" name="country" value="benin"><span>🇧🇯 Bénin</span></label>
-            <label><input type="radio" name="country" value="togo"><span>🇹🇬 Togo</span></label>
+            <label><input type="radio" name="country" value="benin"><span><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg> Bénin</span></label>
+            <label><input type="radio" name="country" value="togo"><span><svg class="flag" aria-hidden="true"><use href="#flag-tg"/></svg> Togo</span></label>
           </fieldset>
           <button id="auth-submit" class="button button-primary button-gradient full" type="submit">Se connecter</button>
           <p id="auth-message" class="form-message" aria-live="polite"></p>
@@ -188,8 +190,8 @@
             <span class="hero-ring hero-ring-a" aria-hidden="true"></span>
             <span class="hero-ring hero-ring-b" aria-hidden="true"></span>
             <div class="hero-switch" role="tablist" aria-label="Pays de livraison">
-              <button class="hero-switch-option active" type="button" role="tab" aria-selected="true" data-hero-country="benin">🇧🇯 Bénin</button>
-              <button class="hero-switch-option" type="button" role="tab" aria-selected="false" data-hero-country="togo">🇹🇬 Togo</button>
+              <button class="hero-switch-option active" type="button" role="tab" aria-selected="true" data-hero-country="benin"><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg> Bénin</button>
+              <button class="hero-switch-option" type="button" role="tab" aria-selected="false" data-hero-country="togo"><svg class="flag" aria-hidden="true"><use href="#flag-tg"/></svg> Togo</button>
             </div>
             <p class="hero-greeting">Bonjour, <span id="welcome-name"></span> 👋</p>
             <h1>Vos achats en France, livrés au Bénin et au Togo</h1>
@@ -201,11 +203,11 @@
             <h2 id="services-title" class="services-title">Nos services</h2>
             <div class="service-grid service-grid-two">
               <button class="service-card" type="button" data-ship-country="benin">
-                <span class="service-banner service-banner-benin"><span class="service-mark">BÉNIN</span></span>
+                <span class="service-banner service-banner-benin"><svg class="service-flag" aria-hidden="true"><use href="#flag-bj"/></svg><span class="service-mark">BÉNIN</span></span>
                 <span class="service-body"><strong>Livraison au Bénin</strong><span>Cotonou, Porto-Novo, Parakou…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
               <button class="service-card" type="button" data-ship-country="togo">
-                <span class="service-banner service-banner-togo"><span class="service-mark">TOGO</span></span>
+                <span class="service-banner service-banner-togo"><svg class="service-flag" aria-hidden="true"><use href="#flag-tg"/></svg><span class="service-mark">TOGO</span></span>
                 <span class="service-body"><strong>Livraison au Togo</strong><span>Lomé, Kara, Sokodé…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
             </div>
@@ -415,11 +417,11 @@
                 <legend>Pays de livraison</legend>
                 <label class="shipping-mode">
                   <input type="radio" name="destination" value="benin" checked>
-                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true">🇧🇯</span><strong>Bénin</strong><span>Cotonou, Porto-Novo…</span></span>
+                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true"><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg></span><strong>Bénin</strong><span>Cotonou, Porto-Novo…</span></span>
                 </label>
                 <label class="shipping-mode">
                   <input type="radio" name="destination" value="togo">
-                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true">🇹🇬</span><strong>Togo</strong><span>Lomé, Kara…</span></span>
+                  <span class="shipping-mode-card country-card"><span class="country-flag" aria-hidden="true"><svg class="flag" aria-hidden="true"><use href="#flag-tg"/></svg></span><strong>Togo</strong><span>Lomé, Kara…</span></span>
                 </label>
               </fieldset>
             </section>
@@ -496,18 +498,16 @@
     <section class="ship-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="ship-sheet-title">
       <span class="ship-sheet-handle" aria-hidden="true"></span>
       <button class="ship-sheet-close" type="button" data-close-ship-sheet aria-label="Fermer">✕</button>
-      <p id="ship-sheet-country" class="ship-sheet-country">🇧🇯 Livraison au Bénin</p>
+      <p id="ship-sheet-country" class="ship-sheet-country"><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg> <span>Livraison au Bénin</span></p>
       <h2 id="ship-sheet-title">Comment voulez-vous recevoir votre colis ?</h2>
-      <div class="ship-sheet-options">
-        <button class="ship-option" type="button" data-sheet-mode="avion">
-          <span class="ship-option-icon"><svg aria-hidden="true"><use href="#i-plane"/></svg></span>
-          <span><strong>Par avion</strong><small>15 € par kilo · le plus rapide</small></span>
-          <i aria-hidden="true">›</i>
+      <div class="ship-sheet-options service-grid service-grid-two">
+        <button class="service-card" type="button" data-sheet-mode="avion">
+          <span class="service-banner service-banner-air"><svg class="service-icon" aria-hidden="true"><use href="#i-plane"/></svg><span class="service-mark">AVION</span></span>
+          <span class="service-body"><strong>Par avion</strong><span>15 € par kilo · le plus rapide</span><i class="service-go" aria-hidden="true">›</i></span>
         </button>
-        <button class="ship-option" type="button" data-sheet-mode="bateau">
-          <span class="ship-option-icon ship-option-sea"><svg aria-hidden="true"><use href="#i-box"/></svg></span>
-          <span><strong>Par bateau</strong><small>Tarif selon les produits · idéal pour les gros colis</small></span>
-          <i aria-hidden="true">›</i>
+        <button class="service-card" type="button" data-sheet-mode="bateau">
+          <span class="service-banner service-banner-sea"><svg class="service-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="service-mark">BATEAU</span></span>
+          <span class="service-body"><strong>Par bateau</strong><span>Selon les produits</span><i class="service-go" aria-hidden="true">›</i></span>
         </button>
       </div>
     </section>
