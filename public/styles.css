@@ -1674,3 +1674,21 @@ body.auth-screen .topbar { background: var(--chrome); }
   body.auth-screen .topbar { background: transparent; }
 }
 @media (max-width: 1099px) { .customer-nav .nav-link.active .nav-icon { color: #fff; } }
+
+/* ======= En-tête, préchargeur et navigation : bleu marine léger en dégradé ======= */
+:root { --chrome-gradient: linear-gradient(120deg, #112770 0%, #183595 45%, #2348c4 100%); }
+.topbar, body.auth-screen .topbar { background: var(--chrome-gradient); }
+.preloader {
+  background:
+    radial-gradient(90% 55% at 50% 0%, #3a68f066 0%, transparent 70%),
+    linear-gradient(180deg, #0f2366 0%, #183595 55%, #2a52d6 100%);
+}
+@media (max-width: 760px) {
+  .customer-nav { background: linear-gradient(120deg, #112770f2 0%, #183595f2 50%, #2348c4f2 100%); }
+}
+@media (min-width: 1100px) {
+  .customer-nav { background: linear-gradient(180deg, #112770 0%, #183595 50%, #2348c4 100%); }
+}
+@media (min-width: 901px) {
+  body.auth-screen .topbar { background: transparent; }
+}
