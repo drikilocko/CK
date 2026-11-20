@@ -223,6 +223,40 @@ function addProductRow() {
 }
 
 const CHECKOUT_STEPS = 5;
+let deliveryStepSkipped = false;
+
+// Dernière livraison du client (commande la plus récente non annulée) : réutilisée sans la redemander.
+function savedDelivery() {
+  const last = customerOrdersCache.find((order) => !order.cancelled && order.customerName && order.phone && order.location);
+  return last ? { customerName: last.customerName, phone: last.phone, location: last.location, destination: last.destination } : null;
+}
+
+function prefillDeliveryFields() {
+  const form = $("#order-form");
+  const saved = savedDelivery();
+  const destination = form.querySelector("[name=destination]").value;
+  if (!form.querySelector("[name=customerName]").value) {
+    form.querySelector("[name=customerName]").value = saved?.customerName || currentUser?.username || "";
+  }
+  if (saved && !form.querySelector("[name=phone]").value) form.querySelector("[name=phone]").value = saved.phone;
+  if (saved && saved.destination === destination && !form.querySelector("[name=location]").value) {
+    form.querySelector("[name=location]").value = saved.location;
+  }
+}
+
+// Renvoie true si la livraison enregistrée a été appliquée (même pays que celui choisi).
+function applySavedDelivery() {
+  const saved = savedDelivery();
+  const form = $("#order-form");
+  if (!saved || saved.destination !== form.querySelector("[name=destination]").value) return false;
+  const name = form.querySelector("[name=customerName]");
+  const phone = form.querySelector("[name=phone]");
+  const location = form.querySelector("[name=location]");
+  if (!name.value) name.value = saved.customerName;
+  if (!phone.value) phone.value = saved.phone;
+  if (!location.value) location.value = saved.location;
+  return Boolean(name.value && phone.value && location.value);
+}
 
 // Étape 2 : chaque lien est rappelé avec le logo et le nom de la boutique.
 function updateLinkPreviews() {
@@ -252,6 +286,8 @@ function setCheckoutStep(step) {
   $("#submit-order").hidden = step !== CHECKOUT_STEPS;
   $("#order-message").textContent = "";
   if (step === 2) updateLinkPreviews();
+  if (step === 4) prefillDeliveryFields();
+  if (step < 4) deliveryStepSkipped = false;
   if (step === CHECKOUT_STEPS) updateCheckoutReview();
 }
 
@@ -663,6 +699,7 @@ function updateCheckoutReview() {
   const mode = form.get("shippingMode") === "bateau" ? "Bateau · tarif selon les produits" : "Avion · 15 € par kilo";
   $("#checkout-review").innerHTML = `${products}
     <div class="review-delivery"><strong>Livraison au ${destination}</strong>
+      <button class="text-button review-edit" type="button" data-edit-delivery>Modifier l'adresse</button>
       <span>Expédition : ${mode}</span>
       <span>${escapeHtml(name)} · ${escapeHtml(phone)}</span>
       <span>${escapeHtml(location)}</span>
@@ -1537,6 +1574,11 @@ $("#next-step").addEventListener("click", () => {
   if (checkoutStep === 1 && !validateLinks()) return;
   if (checkoutStep === 2 && !validateProducts()) return;
   if (checkoutStep === 3 && !$("#order-form [name=destination]").reportValidity()) return;
+  if (checkoutStep === 3 && applySavedDelivery()) {
+    deliveryStepSkipped = true;
+    setCheckoutStep(5);
+    return;
+  }
   if (checkoutStep === 4) {
     if (!$("#order-form [name=location]").value) {
       $("#order-message").textContent = "Choisissez votre adresse sur la carte pour continuer.";
@@ -1550,7 +1592,14 @@ $("#next-step").addEventListener("click", () => {
   }
   setCheckoutStep(checkoutStep + 1);
 });
-$("#previous-step").addEventListener("click", () => setCheckoutStep(checkoutStep - 1));
+$("#previous-step").addEventListener("click", () => {
+  setCheckoutStep(checkoutStep === 5 && deliveryStepSkipped ? 3 : checkoutStep - 1);
+});
+$("#checkout-review").addEventListener("click", (event) => {
+  if (!event.target.closest("[data-edit-delivery]")) return;
+  deliveryStepSkipped = false;
+  setCheckoutStep(4);
+});
 $("#edit-quote-request").addEventListener("click", () => $("#quote-notice").close());
 $("#confirm-quote-request").addEventListener("click", () => {
   $("#quote-notice").close();
