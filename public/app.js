@@ -224,6 +224,7 @@ function addProductRow() {
 
 const CHECKOUT_STEPS = 5;
 let countryChosenOnHome = false;
+let shippingChosenOnHome = false;
 
 // Pays de livraison : deux cartes (boutons radio) à l'étape 3.
 function getDestination() {
@@ -1503,7 +1504,11 @@ $("#logout-button").addEventListener("click", async () => {
 $("#customer-view").addEventListener("click", (event) => {
   const button = event.target.closest("[data-page-link]");
   const country = event.target.closest("[data-ship-country]")?.dataset.shipCountry;
-  if (country) chooseCountryFromHome(country);
+  if (country) {
+    chooseCountryFromHome(country);
+    openShipSheet(country);
+    return;
+  }
   if (button) showCustomerPage(button.dataset.pageLink);
 });
 $("#admin-order-search").addEventListener("input", renderAdminOrders);
@@ -1587,11 +1592,6 @@ $("#map-modal").addEventListener("keydown", (event) => {
 $("#next-step").addEventListener("click", () => {
   if (checkoutStep === 1 && !validateLinks()) return;
   if (checkoutStep === 2 && !validateProducts()) return;
-  if (checkoutStep === 3 && applySavedDelivery()) {
-    deliveryStepSkipped = true;
-    setCheckoutStep(5);
-    return;
-  }
   if (checkoutStep === 4) {
     if (!$("#order-form [name=location]").value) {
       $("#order-message").textContent = "Choisissez votre adresse sur la carte pour continuer.";
@@ -1603,10 +1603,19 @@ $("#next-step").addEventListener("click", () => {
       if (!field.reportValidity()) return;
     }
   }
-  setCheckoutStep(checkoutStep + 1);
+  let next = checkoutStep + 1;
+  if (next === 3 && shippingChosenOnHome) next = 4;
+  if (next === 4 && applySavedDelivery()) {
+    deliveryStepSkipped = true;
+    next = 5;
+  }
+  setCheckoutStep(next);
 });
 $("#previous-step").addEventListener("click", () => {
-  setCheckoutStep(checkoutStep === 5 && deliveryStepSkipped ? 3 : checkoutStep - 1);
+  let previous = checkoutStep - 1;
+  if (previous === 4 && deliveryStepSkipped) previous = 3;
+  if (previous === 3 && shippingChosenOnHome) previous = 2;
+  setCheckoutStep(previous);
 });
 $("#checkout-review").addEventListener("click", (event) => {
   if (!event.target.closest("[data-edit-delivery]")) return;
@@ -2105,6 +2114,41 @@ function chooseCountryFromHome(country) {
 }
 document.querySelector(".hero-switch").addEventListener("click", (event) => {
   const option = event.target.closest("[data-hero-country]");
-  if (option) chooseCountryFromHome(option.dataset.heroCountry);
+  if (!option) return;
+  chooseCountryFromHome(option.dataset.heroCountry);
+  openShipSheet(option.dataset.heroCountry);
 });
 showHeroCountry(getDestination());
+
+// Panneau du bas : après le pays, le client choisit avion ou bateau, puis la commande s'ouvre sans l'étape Expédition.
+function openShipSheet(country) {
+  $("#ship-sheet-country").textContent = country === "togo" ? "🇹🇬 Livraison au Togo" : "🇧🇯 Livraison au Bénin";
+  const current = document.querySelector("#order-form [name=shippingMode]:checked")?.value;
+  document.querySelectorAll("[data-sheet-mode]").forEach((button) => {
+    button.classList.toggle("is-current", shippingChosenOnHome && button.dataset.sheetMode === current);
+  });
+  $("#ship-sheet").hidden = false;
+  document.body.classList.add("sheet-open");
+}
+function closeShipSheet() {
+  $("#ship-sheet").hidden = true;
+  document.body.classList.remove("sheet-open");
+}
+$("#ship-sheet").addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-ship-sheet]")) {
+    closeShipSheet();
+    return;
+  }
+  const option = event.target.closest("[data-sheet-mode]");
+  if (!option) return;
+  const radio = document.querySelector(`#order-form [name=shippingMode][value="${option.dataset.sheetMode}"]`);
+  if (radio) radio.checked = true;
+  shippingChosenOnHome = true;
+  $("#order-form").classList.add("ship-locked");
+  closeShipSheet();
+  if (checkoutStep === 3) setCheckoutStep(2);
+  showCustomerPage("order");
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#ship-sheet").hidden) closeShipSheet();
+});

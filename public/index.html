@@ -200,11 +200,11 @@
           <section class="services-section" aria-labelledby="services-title">
             <h2 id="services-title" class="services-title">Nos services</h2>
             <div class="service-grid service-grid-two">
-              <button class="service-card" type="button" data-page-link="order" data-ship-country="benin">
+              <button class="service-card" type="button" data-ship-country="benin">
                 <span class="service-banner service-banner-benin"><span class="service-mark">BÉNIN</span></span>
                 <span class="service-body"><strong>Livraison au Bénin</strong><span>Cotonou, Porto-Novo, Parakou…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
-              <button class="service-card" type="button" data-page-link="order" data-ship-country="togo">
+              <button class="service-card" type="button" data-ship-country="togo">
                 <span class="service-banner service-banner-togo"><span class="service-mark">TOGO</span></span>
                 <span class="service-body"><strong>Livraison au Togo</strong><span>Lomé, Kara, Sokodé…</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
@@ -491,6 +491,27 @@
       </section>
     </section>
   </main>
+  <div id="ship-sheet" class="ship-sheet" hidden>
+    <div class="ship-sheet-backdrop" data-close-ship-sheet></div>
+    <section class="ship-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="ship-sheet-title">
+      <span class="ship-sheet-handle" aria-hidden="true"></span>
+      <button class="ship-sheet-close" type="button" data-close-ship-sheet aria-label="Fermer">✕</button>
+      <p id="ship-sheet-country" class="ship-sheet-country">🇧🇯 Livraison au Bénin</p>
+      <h2 id="ship-sheet-title">Comment voulez-vous recevoir votre colis ?</h2>
+      <div class="ship-sheet-options">
+        <button class="ship-option" type="button" data-sheet-mode="avion">
+          <span class="ship-option-icon"><svg aria-hidden="true"><use href="#i-plane"/></svg></span>
+          <span><strong>Par avion</strong><small>15 € par kilo · le plus rapide</small></span>
+          <i aria-hidden="true">›</i>
+        </button>
+        <button class="ship-option" type="button" data-sheet-mode="bateau">
+          <span class="ship-option-icon ship-option-sea"><svg aria-hidden="true"><use href="#i-box"/></svg></span>
+          <span><strong>Par bateau</strong><small>Tarif selon les produits · idéal pour les gros colis</small></span>
+          <i aria-hidden="true">›</i>
+        </button>
+      </div>
+    </section>
+  </div>
   <div id="whatsapp-fallback" class="whatsapp-fallback" role="status" hidden>
     <span>Le navigateur a bloqué l'ouverture de WhatsApp.</span>
     <a class="button button-primary" href="#" target="_blank" rel="noopener noreferrer">Ouvrir WhatsApp</a>

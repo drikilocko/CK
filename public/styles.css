@@ -1722,3 +1722,25 @@ body.auth-screen .topbar { background: var(--chrome); }
 .country-card { align-items: flex-start; }
 .country-flag { font-size: 24px; line-height: 1; }
 #order-form.country-locked .destination-choice { display: none; }
+
+/* ======= Panneau du bas : avion ou bateau ======= */
+.ship-sheet { position: fixed; z-index: 3000; inset: 0; }
+.ship-sheet-backdrop { position: absolute; inset: 0; background: #0b185080; animation: sheet-fade .25s ease-out; }
+.ship-sheet-panel { position: absolute; right: 0; bottom: 0; left: 0; display: grid; gap: 14px; margin: 0 auto; padding: 14px 16px calc(22px + env(safe-area-inset-bottom)); border-radius: 26px 26px 0 0; background: #fff; box-shadow: 0 -18px 50px #0b185040; animation: sheet-up .4s var(--ease-out); }
+@media (min-width: 761px) { .ship-sheet-panel { width: min(560px, 100%); padding-right: 24px; padding-left: 24px; } }
+.ship-sheet-handle { justify-self: center; width: 44px; height: 5px; border-radius: 99px; background: #d3ddf2; }
+.ship-sheet-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #eef3ff; color: var(--royal); cursor: pointer; }
+.ship-sheet-country { margin: 4px 0 0; color: var(--royal); font-size: 13px; font-weight: 700; }
+.ship-sheet-panel h2 { margin: 0; padding-right: 40px; color: var(--night); font-size: 22px; line-height: 1.25; }
+.ship-sheet-options { display: grid; gap: 10px; }
+.ship-option { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid #dce5f8; border-radius: 18px; background: #f6f9ff; color: var(--night); font: inherit; text-align: left; cursor: pointer; transition: border-color .2s, transform .2s, background .2s; }
+.ship-option:hover, .ship-option.is-current { border-color: var(--royal); background: #eef3ff; }
+.ship-option:active { transform: scale(.98); }
+.ship-option-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #3a68f0, #1f43cf); color: #fff; }
+.ship-option-sea { background: linear-gradient(135deg, #2a42a6, #15277c); }
+.ship-option-icon svg { width: 24px; height: 24px; }
+.ship-option strong { display: block; font: 800 16px Manrope, sans-serif; }
+.ship-option small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.ship-option i { color: var(--royal); font-size: 24px; font-style: normal; }
+/* Étape Expédition retirée quand le mode a été choisi sur l'accueil */
+#order-form.ship-locked .progress-step[data-step="3"], #order-form.ship-locked .progress-step[data-step="3"] + i { display: none; }
