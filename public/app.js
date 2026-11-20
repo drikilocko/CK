@@ -124,8 +124,10 @@ function addProductRow() {
     <div class="product-card-header"><strong>Lien <span class="product-number"></span></strong>
       <button class="remove-product" type="button" aria-label="Supprimer ce lien">×</button>
     </div>
-    <label>Lien de l'article ou du panier<input class="product-link" type="url" required maxlength="2000" inputmode="url" placeholder="https://…"></label>
-    <label>Description (facultatif)<input class="product-name" maxlength="120" placeholder="Ex. Baskets taille 42, couleur noire"></label>
+    <label class="product-link-field">Lien de l'article ou du panier<input class="product-link" type="url" required maxlength="2000" inputmode="url" placeholder="https://…"></label>
+    <div class="product-link-preview"><img alt="" referrerpolicy="no-referrer"><span></span></div>
+    <div class="product-details">
+    <label>Description (taille, couleur…)<input class="product-name" maxlength="120" placeholder="Ex. Baskets taille 42, couleur noire"></label>
     <div class="product-inline">
       <label>Quantité<input class="product-quantity" type="number" min="1" max="99" step="1" value="1" required></label>
       <label>Prix unitaire €<input class="product-price" type="number" min="0.01" max="1000000" step="0.01" placeholder="Facultatif"></label>
@@ -145,7 +147,8 @@ function addProductRow() {
         <input class="image-url" type="url" placeholder="Ou collez le lien de l'image">
         <span class="image-error" aria-live="polite"></span>
       </div>
-    </details>`;
+    </details>
+    </div>`;
   const updateNumber = () => {
     [...$("#product-list").children].forEach((product, index) => {
       product.querySelector(".product-number").textContent = String(index + 1).padStart(2, "0");
@@ -219,6 +222,18 @@ function addProductRow() {
   refreshQuote();
 }
 
+const CHECKOUT_STEPS = 5;
+
+// Étape 2 : chaque lien est rappelé avec le logo et le nom de la boutique.
+function updateLinkPreviews() {
+  document.querySelectorAll("#product-list .product-row").forEach((row) => {
+    const host = linkHost(row.querySelector(".product-link").value.trim());
+    const preview = row.querySelector(".product-link-preview");
+    preview.querySelector("span").textContent = host;
+    preview.querySelector("img").src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  });
+}
+
 function setCheckoutStep(step) {
   checkoutStep = step;
   document.querySelectorAll("[data-checkout-step]").forEach((section) => {
@@ -229,13 +244,15 @@ function setCheckoutStep(step) {
     indicator.classList.toggle("active", number === step);
     indicator.classList.toggle("complete", number < step);
   });
-  $("#checkout-title").textContent = ["", "1. Vos liens", "2. Expédition et livraison", "3. Vérification"][step];
-  $("#next-step").textContent = step === 1 ? "Continuer vers la livraison →" : "Vérification →";
+  $("#order-form").dataset.step = String(step);
+  $("#checkout-title").textContent = ["", "1. Vos liens", "2. Détails des articles", "3. Expédition", "4. Livraison", "5. Vérification"][step];
+  $("#next-step").textContent = ["", "Détailler mes articles →", "Choisir l'expédition →", "Adresse de livraison →", "Vérifier ma commande →", ""][step];
   $("#previous-step").hidden = step === 1;
-  $("#next-step").hidden = step === 3;
-  $("#submit-order").hidden = step !== 3;
+  $("#next-step").hidden = step === CHECKOUT_STEPS;
+  $("#submit-order").hidden = step !== CHECKOUT_STEPS;
   $("#order-message").textContent = "";
-  if (step === 3) updateCheckoutReview();
+  if (step === 2) updateLinkPreviews();
+  if (step === CHECKOUT_STEPS) updateCheckoutReview();
 }
 
 // ---------------------------------------------------------------------------
@@ -273,11 +290,11 @@ function userCountry() {
 }
 
 function whatsappNumberFor(country) {
-  return country === "togo" ? "22890290081" : "22997158484";
+  return country === "togo" ? "22890290081" : "2290197158484";
 }
 
 function assistantLabelFor(country) {
-  return country === "togo" ? "Assistant Togo · +228 90 29 00 81" : "Assistant Bénin · +229 97 15 84 84";
+  return country === "togo" ? "Assistant Togo · +228 90 29 00 81" : "Assistant Bénin · +229 01 97 15 84 84";
 }
 
 function destinationMapCenter() {
@@ -558,12 +575,9 @@ function confirmDeliveryLocation() {
   closeDeliveryMap();
 }
 
-function validateProducts() {
-  const rows = [...$("#product-list").children];
-  for (const row of rows) {
+function validateLinks() {
+  for (const row of $("#product-list").children) {
     const link = row.querySelector(".product-link");
-    const quantity = row.querySelector(".product-quantity");
-    const price = row.querySelector(".product-price");
     if (!link.reportValidity()) return false;
     if (!/^https?:\/\//i.test(link.value.trim())) {
       link.setCustomValidity("Le lien doit commencer par https://");
@@ -571,6 +585,15 @@ function validateProducts() {
       link.setCustomValidity("");
       return false;
     }
+  }
+  return true;
+}
+
+function validateProducts() {
+  const rows = [...$("#product-list").children];
+  for (const row of rows) {
+    const quantity = row.querySelector(".product-quantity");
+    const price = row.querySelector(".product-price");
     if (!row.querySelector(".product-name").reportValidity()) return false;
     if (!quantity.reportValidity()) return false;
     if (price.value && !price.reportValidity()) return false;
@@ -818,7 +841,9 @@ function orderLink(order) {
 
 function customerWhatsappUrl(order, lines) {
   let phone = order.phone.replace(/\D/g, "");
-  if (phone.length === 8) phone = `${order.destination === "benin" ? "229" : "228"}${phone}`;
+  if (phone.length === 8 || (phone.length === 10 && phone.startsWith("01"))) {
+    phone = `${order.destination === "benin" ? "229" : "228"}${phone}`;
+  }
   const text = [...lines, "", `Suivez votre commande ici : ${orderLink(order)}`].join("\n");
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
@@ -1297,6 +1322,7 @@ function showApp(user) {
     if (!$("#order-form [name=location]").value) {
       $("#order-form [name=destination]").value = userCountry();
     }
+    $("#whatsapp-float").href = `https://wa.me/${whatsappNumberFor(userCountry())}?text=${encodeURIComponent("Bonjour, j'ai une question sur ma commande Speed Shopping.")}`;
     if (!openOrderFromHash()) {
       const initialPage = Object.keys(customerPageHashes).find((page) => customerPageHashes[page] === window.location.hash) || "order";
       showCustomerPage(initialPage, window.location.hash !== customerPageHashes[initialPage]);
@@ -1506,14 +1532,16 @@ $("#map-modal").addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeDeliveryMap();
 });
 $("#next-step").addEventListener("click", () => {
-  if (checkoutStep === 1 && !validateProducts()) return;
-  if (checkoutStep === 2) {
+  if (checkoutStep === 1 && !validateLinks()) return;
+  if (checkoutStep === 2 && !validateProducts()) return;
+  if (checkoutStep === 3 && !$("#order-form [name=destination]").reportValidity()) return;
+  if (checkoutStep === 4) {
     if (!$("#order-form [name=location]").value) {
       $("#order-message").textContent = "Choisissez votre adresse sur la carte pour continuer.";
       openDeliveryMap();
       return;
     }
-    const requiredFields = [...$("#order-form").querySelectorAll("[data-checkout-step='2'] [required]")];
+    const requiredFields = [...$("#order-form").querySelectorAll("[data-checkout-step='4'] [required]")];
     for (const field of requiredFields) {
       if (!field.reportValidity()) return;
     }
@@ -1965,7 +1993,7 @@ if (isAdminRoute) {
   $("#auth-switch").hidden = true;
   $(".auth-panel .tabs").hidden = true;
   $("#auth-title").textContent = "Espace admin";
-  $("#auth-subtitle").textContent = "Accès réservé à l'équipe CK";
+  $("#auth-subtitle").textContent = "Accès réservé à l'équipe Speed Shopping";
   $("#auth-submit").textContent = "Accéder à l'administration";
 }
 
@@ -1990,4 +2018,24 @@ $("#admin-orders").addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && openAdminSheetId !== null && !$("#admin-edit").open) setAdminSheet(null);
+});
+
+// Accueil : sélecteur Avion / Bateau ; le mode choisi est présélectionné dans le formulaire.
+const heroModes = {
+  avion: { icon: "#i-plane", text: "Avion · 15 € par kilo · le plus rapide" },
+  bateau: { icon: "#i-box", text: "Bateau · tarif selon les produits · idéal pour les gros colis" }
+};
+document.querySelector(".hero-switch").addEventListener("click", (event) => {
+  const option = event.target.closest("[data-hero-mode]");
+  if (!option) return;
+  const mode = option.dataset.heroMode;
+  document.querySelectorAll("[data-hero-mode]").forEach((button) => {
+    const active = button === option;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $("#hero-mode-detail use").setAttribute("href", heroModes[mode].icon);
+  $("#hero-mode-detail span").textContent = heroModes[mode].text;
+  const radio = document.querySelector(`#order-form [name=shippingMode][value="${mode}"]`);
+  if (radio) radio.checked = true;
 });

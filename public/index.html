@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#21114d">
-  <title>CK — Vos commandes, suivies simplement</title>
+  <meta name="theme-color" content="#0b1850">
+  <title>Speed Shopping — La France à portée de main</title>
   <link rel="stylesheet" href="/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -31,9 +31,9 @@
       <svg class="preloader-brand" viewBox="0 -30 360 150" aria-hidden="true">
         <defs>
           <linearGradient id="trail-gradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#a98bff" stop-opacity="0"/>
-            <stop offset=".35" stop-color="#a98bff" stop-opacity=".8"/>
-            <stop offset="1" stop-color="#e9ffb0"/>
+            <stop offset="0" stop-color="#8fb0ff" stop-opacity="0"/>
+            <stop offset=".35" stop-color="#8fb0ff" stop-opacity=".8"/>
+            <stop offset="1" stop-color="#ffe1e2"/>
           </linearGradient>
           <!-- Masque qui révèle la traînée : même horloge, même départ, même durée et même courbe que l'avion. -->
           <mask id="arc-mask" maskUnits="userSpaceOnUse" x="-20" y="-40" width="400" height="160">
@@ -62,22 +62,22 @@
   </div>
 
   <header class="topbar">
-    <a class="brand" href="/">CK<span>.</span></a>
+    <a class="brand" href="/" aria-label="Speed Shopping, accueil"><b class="brand-speed">SPEED</b><b class="brand-shopping">SHOPPING</b></a>
     <div class="header-actions">
       <div class="contact-menu-wrap">
-        <button id="contact-menu-toggle" class="contact-menu-toggle" type="button" aria-label="Contacter CK sur WhatsApp" aria-expanded="false" aria-controls="contact-menu">
+        <button id="contact-menu-toggle" class="contact-menu-toggle" type="button" aria-label="Contacter Speed Shopping sur WhatsApp" aria-expanded="false" aria-controls="contact-menu">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.58 2.8.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
         <div id="contact-menu" class="contact-menu" role="menu" aria-label="Choisir le pays" hidden>
-          <p>Contacter CK sur WhatsApp</p>
-          <a role="menuitem" href="https://wa.me/22997158484?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20CK." target="_blank" rel="noopener noreferrer">
+          <p>Contacter Speed Shopping sur WhatsApp</p>
+          <a role="menuitem" href="https://wa.me/2290197158484?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20Speed%20Shopping." target="_blank" rel="noopener noreferrer">
             <span class="contact-country-flag" aria-hidden="true">🇧🇯</span>
-            <span><strong>Bénin</strong><small>+229 97 15 84 84</small></span>
+            <span><strong>Bénin</strong><small>+229 01 97 15 84 84</small></span>
             <span class="contact-menu-arrow" aria-hidden="true">↗</span>
           </a>
-          <a role="menuitem" href="https://wa.me/22890290081?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20CK." target="_blank" rel="noopener noreferrer">
+          <a role="menuitem" href="https://wa.me/22890290081?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20Speed%20Shopping." target="_blank" rel="noopener noreferrer">
             <span class="contact-country-flag" aria-hidden="true">🇹🇬</span>
             <span><strong>Togo</strong><small>+228 90 29 00 81</small></span>
             <span class="contact-menu-arrow" aria-hidden="true">↗</span>
@@ -94,6 +94,10 @@
   <main>
     <section id="auth-view" class="auth-layout">
       <div class="intro">
+        <svg class="intro-eiffel" viewBox="0 0 120 300" aria-hidden="true">
+          <path d="M60 0 L63 30 L66 30 L70 105 L78 105 L78 113 L72 113 L80 185 L92 185 L92 194 L84 194 Q 100 250 118 300 L92 300 Q 84 262 60 252 Q 36 262 28 300 L2 300 Q 20 250 36 194 L28 194 L28 185 L40 185 L48 113 L42 113 L42 105 L50 105 L54 30 L57 30 Z"/>
+          <path class="intro-eiffel-lattice" d="M52 113 L68 185 M68 113 L52 185 M44 194 L76 250 M76 194 L44 250 M55 40 L65 100 M65 40 L55 100"/>
+        </svg>
         <p class="eyebrow">BÉNIN · TOGO</p>
         <h1>Vos achats,<br>en toute simplicité.</h1>
         <p class="intro-copy">Envoyez-nous les liens de vos articles, payez par MoMo et nous les expédions depuis la France jusqu'à vous.</p>
@@ -156,6 +160,10 @@
           <button id="auth-submit" class="button button-primary button-gradient full" type="submit">Se connecter</button>
           <p id="auth-message" class="form-message" aria-live="polite"></p>
         </form>
+        <a class="auth-whatsapp" href="https://wa.me/2290197158484?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20le%20site%20Speed%20Shopping." target="_blank" rel="noopener noreferrer">
+          <span class="auth-whatsapp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg></span>
+          <span><small>Contactez-nous sur WhatsApp</small><strong>+229 01 97 15 84 84</strong></span>
+        </a>
         <p id="auth-switch" class="auth-switch">Pas encore de compte ? <button id="auth-switch-button" type="button">Créer un compte</button></p>
       </section>
     </section>
@@ -171,39 +179,54 @@
           <button id="nav-collapse" class="nav-collapse" type="button" aria-expanded="true" title="Réduire le menu"><svg class="nav-icon" aria-hidden="true"><use href="#i-back"/></svg><span>Réduire le menu</span></button>
         </nav>
 
+        <a id="whatsapp-float" class="whatsapp-float" href="https://wa.me/2290197158484" target="_blank" rel="noopener noreferrer" aria-label="Contacter mon assistant sur WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>
+          <span class="whatsapp-float-dot" aria-hidden="true"></span>
+        </a>
         <section id="customer-page-home" class="customer-page">
-          <div class="home-hero">
-            <p class="eyebrow">ESPACE CLIENT · BÉNIN & TOGO</p>
-            <h1>Bonjour <span id="welcome-name"></span>,<br>que souhaitez-vous faire ?</h1>
-            <p class="home-copy">Collez les liens de vos articles ou de votre panier : nous achetons pour vous en Europe et vous livrons au Bénin ou au Togo.</p>
+          <div class="home-hero hero-v2">
+            <span class="hero-ring hero-ring-a" aria-hidden="true"></span>
+            <span class="hero-ring hero-ring-b" aria-hidden="true"></span>
+            <div class="hero-switch" role="tablist" aria-label="Mode d'expédition">
+              <button class="hero-switch-option active" type="button" role="tab" aria-selected="true" data-hero-mode="avion">Avion</button>
+              <button class="hero-switch-option" type="button" role="tab" aria-selected="false" data-hero-mode="bateau">Bateau</button>
+            </div>
+            <p class="hero-greeting">Bonjour, <span id="welcome-name"></span> 👋</p>
+            <h1>Vos achats en France, livrés au Bénin et au Togo</h1>
+            <p id="hero-mode-detail" class="hero-mode-detail"><svg aria-hidden="true"><use href="#i-plane"/></svg><span>Avion · 15 € par kilo · le plus rapide</span></p>
             <button class="button button-primary home-cta" type="button" data-page-link="order">＋ Envoyer mes liens</button>
-            <svg class="hero-scene" viewBox="0 0 600 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-<circle class="hs-sun" cx="520" cy="46" r="24"/>
-<g class="hs-cloud hs-cloud-a"><ellipse cx="120" cy="40" rx="30" ry="10"/><ellipse cx="136" cy="33" rx="17" ry="11"/></g>
-<g class="hs-cloud hs-cloud-b"><ellipse cx="420" cy="40" rx="24" ry="8"/><ellipse cx="432" cy="34" rx="13" ry="9"/></g>
-<path class="hs-route" d="M-20 120 C 140 100, 320 30, 640 40"/>
-<g class="hs-back"><rect x="0" y="110" width="46" height="90"/><rect x="44" y="86" width="34" height="114"/><rect x="76" y="120" width="52" height="80"/><rect x="126" y="70" width="30" height="130"/><rect x="154" y="104" width="58" height="96"/><rect x="300" y="96" width="40" height="104"/><rect x="338" y="124" width="34" height="76"/><rect x="460" y="92" width="44" height="108"/><rect x="502" y="116" width="36" height="84"/><rect x="536" y="100" width="64" height="100"/><rect x="139" y="52" width="3" height="18"/></g>
-<g class="hs-hotel"><rect x="372" y="46" width="74" height="154" rx="3"/><rect class="hs-door" x="398" y="178" width="22" height="22" rx="2"/></g>
-<g class="hs-hotel hs-hotel-b"><rect x="196" y="64" width="48" height="136" rx="3"/></g>
-<g class="hs-front"><rect x="0" y="140" width="58" height="65" rx="2"/><rect x="56" y="124" width="40" height="81" rx="2"/><rect x="150" y="132" width="52" height="73" rx="2"/><rect x="240" y="150" width="46" height="55" rx="2"/><rect x="288" y="128" width="56" height="77" rx="2"/><rect x="470" y="136" width="48" height="69" rx="2"/><rect x="516" y="150" width="40" height="55" rx="2"/><rect x="554" y="130" width="46" height="75" rx="2"/></g>
-<g class="hs-windows"><rect x="6" y="148" width="5" height="6" rx="1"/><rect x="16" y="148" width="5" height="6" rx="1"/><rect x="26" y="148" width="5" height="6" rx="1"/><rect x="36" y="148" width="5" height="6" rx="1"/><rect x="46" y="148" width="5" height="6" rx="1" class="off"/><rect x="16" y="160" width="5" height="6" rx="1"/><rect x="26" y="160" width="5" height="6" rx="1"/><rect x="36" y="160" width="5" height="6" rx="1"/><rect x="46" y="160" width="5" height="6" rx="1" class="off"/><rect x="6" y="172" width="5" height="6" rx="1"/><rect x="26" y="172" width="5" height="6" rx="1"/><rect x="36" y="172" width="5" height="6" rx="1"/><rect x="46" y="172" width="5" height="6" rx="1" class="off"/><rect x="6" y="184" width="5" height="6" rx="1"/><rect x="16" y="184" width="5" height="6" rx="1"/><rect x="36" y="184" width="5" height="6" rx="1"/><rect x="46" y="184" width="5" height="6" rx="1" class="off"/><rect x="62" y="132" width="5" height="6" rx="1"/><rect x="72" y="132" width="5" height="6" rx="1"/><rect x="82" y="132" width="5" height="6" rx="1"/><rect x="72" y="144" width="5" height="6" rx="1" class="off"/><rect x="82" y="144" width="5" height="6" rx="1"/><rect x="62" y="156" width="5" height="6" rx="1"/><rect x="72" y="156" width="5" height="6" rx="1"/><rect x="82" y="156" width="5" height="6" rx="1"/><rect x="72" y="168" width="5" height="6" rx="1"/><rect x="82" y="168" width="5" height="6" rx="1"/><rect x="62" y="180" width="5" height="6" rx="1"/><rect x="72" y="180" width="5" height="6" rx="1"/><rect x="82" y="180" width="5" height="6" rx="1" class="off"/><rect x="166" y="140" width="5" height="6" rx="1"/><rect x="176" y="140" width="5" height="6" rx="1"/><rect x="186" y="140" width="5" height="6" rx="1"/><rect x="156" y="152" width="5" height="6" rx="1" class="off"/><rect x="166" y="152" width="5" height="6" rx="1"/><rect x="186" y="152" width="5" height="6" rx="1"/><rect x="156" y="164" width="5" height="6" rx="1"/><rect x="166" y="164" width="5" height="6" rx="1" class="off"/><rect x="176" y="164" width="5" height="6" rx="1"/><rect x="186" y="164" width="5" height="6" rx="1"/><rect x="166" y="176" width="5" height="6" rx="1"/><rect x="176" y="176" width="5" height="6" rx="1" class="off"/><rect x="186" y="176" width="5" height="6" rx="1"/><rect x="156" y="188" width="5" height="6" rx="1"/><rect x="166" y="188" width="5" height="6" rx="1"/><rect x="186" y="188" width="5" height="6" rx="1" class="off"/><rect x="246" y="158" width="5" height="6" rx="1"/><rect x="256" y="158" width="5" height="6" rx="1"/><rect x="266" y="158" width="5" height="6" rx="1"/><rect x="276" y="158" width="5" height="6" rx="1"/><rect x="256" y="170" width="5" height="6" rx="1"/><rect x="266" y="170" width="5" height="6" rx="1"/><rect x="276" y="170" width="5" height="6" rx="1"/><rect x="246" y="182" width="5" height="6" rx="1"/><rect x="256" y="182" width="5" height="6" rx="1" class="off"/><rect x="276" y="182" width="5" height="6" rx="1"/><rect x="294" y="136" width="5" height="6" rx="1"/><rect x="304" y="136" width="5" height="6" rx="1"/><rect x="314" y="136" width="5" height="6" rx="1" class="off"/><rect x="324" y="136" width="5" height="6" rx="1"/><rect x="294" y="148" width="5" height="6" rx="1"/><rect x="304" y="148" width="5" height="6" rx="1"/><rect x="314" y="148" width="5" height="6" rx="1" class="off"/><rect x="324" y="148" width="5" height="6" rx="1"/><rect x="334" y="148" width="5" height="6" rx="1"/><rect x="304" y="160" width="5" height="6" rx="1"/><rect x="314" y="160" width="5" height="6" rx="1" class="off"/><rect x="324" y="160" width="5" height="6" rx="1"/><rect x="334" y="160" width="5" height="6" rx="1"/><rect x="294" y="172" width="5" height="6" rx="1"/><rect x="314" y="172" width="5" height="6" rx="1" class="off"/><rect x="324" y="172" width="5" height="6" rx="1"/><rect x="334" y="172" width="5" height="6" rx="1"/><rect x="294" y="184" width="5" height="6" rx="1"/><rect x="304" y="184" width="5" height="6" rx="1"/><rect x="324" y="184" width="5" height="6" rx="1"/><rect x="334" y="184" width="5" height="6" rx="1"/><rect x="476" y="144" width="5" height="6" rx="1"/><rect x="486" y="144" width="5" height="6" rx="1"/><rect x="496" y="144" width="5" height="6" rx="1" class="off"/><rect x="476" y="156" width="5" height="6" rx="1"/><rect x="486" y="156" width="5" height="6" rx="1"/><rect x="496" y="156" width="5" height="6" rx="1"/><rect x="506" y="156" width="5" height="6" rx="1" class="off"/><rect x="476" y="168" width="5" height="6" rx="1"/><rect x="496" y="168" width="5" height="6" rx="1"/><rect x="506" y="168" width="5" height="6" rx="1"/><rect x="476" y="180" width="5" height="6" rx="1" class="off"/><rect x="486" y="180" width="5" height="6" rx="1"/><rect x="496" y="180" width="5" height="6" rx="1"/><rect x="522" y="158" width="5" height="6" rx="1"/><rect x="532" y="158" width="5" height="6" rx="1" class="off"/><rect x="542" y="158" width="5" height="6" rx="1"/><rect x="522" y="170" width="5" height="6" rx="1"/><rect x="532" y="170" width="5" height="6" rx="1"/><rect x="522" y="182" width="5" height="6" rx="1" class="off"/><rect x="532" y="182" width="5" height="6" rx="1"/><rect x="542" y="182" width="5" height="6" rx="1"/><rect x="560" y="138" width="5" height="6" rx="1"/><rect x="570" y="138" width="5" height="6" rx="1"/><rect x="590" y="138" width="5" height="6" rx="1"/><rect x="560" y="150" width="5" height="6" rx="1"/><rect x="570" y="150" width="5" height="6" rx="1"/><rect x="580" y="150" width="5" height="6" rx="1"/><rect x="590" y="150" width="5" height="6" rx="1" class="off"/><rect x="570" y="162" width="5" height="6" rx="1"/><rect x="580" y="162" width="5" height="6" rx="1"/><rect x="590" y="162" width="5" height="6" rx="1"/><rect x="560" y="174" width="5" height="6" rx="1" class="off"/><rect x="570" y="174" width="5" height="6" rx="1"/><rect x="590" y="174" width="5" height="6" rx="1"/><rect x="560" y="186" width="5" height="6" rx="1"/><rect x="570" y="186" width="5" height="6" rx="1" class="off"/><rect x="580" y="186" width="5" height="6" rx="1"/><rect x="590" y="186" width="5" height="6" rx="1"/><rect x="387" y="60" width="5" height="6" rx="1"/><rect x="396" y="60" width="5" height="6" rx="1" class="off"/><rect x="405" y="60" width="5" height="6" rx="1"/><rect x="414" y="60" width="5" height="6" rx="1"/><rect x="423" y="60" width="5" height="6" rx="1"/><rect x="378" y="71" width="5" height="6" rx="1" class="off"/><rect x="387" y="71" width="5" height="6" rx="1"/><rect x="396" y="71" width="5" height="6" rx="1"/><rect x="405" y="71" width="5" height="6" rx="1"/><rect x="414" y="71" width="5" height="6" rx="1"/><rect x="432" y="71" width="5" height="6" rx="1"/><rect x="378" y="82" width="5" height="6" rx="1"/><rect x="387" y="82" width="5" height="6" rx="1"/><rect x="396" y="82" width="5" height="6" rx="1"/><rect x="405" y="82" width="5" height="6" rx="1" class="off"/><rect x="423" y="82" width="5" height="6" rx="1"/><rect x="432" y="82" width="5" height="6" rx="1"/><rect x="378" y="93" width="5" height="6" rx="1"/><rect x="387" y="93" width="5" height="6" rx="1" class="off"/><rect x="396" y="93" width="5" height="6" rx="1"/><rect x="414" y="93" width="5" height="6" rx="1"/><rect x="423" y="93" width="5" height="6" rx="1"/><rect x="432" y="93" width="5" height="6" rx="1" class="off"/><rect x="378" y="104" width="5" height="6" rx="1"/><rect x="387" y="104" width="5" height="6" rx="1"/><rect x="405" y="104" width="5" height="6" rx="1"/><rect x="414" y="104" width="5" height="6" rx="1" class="off"/><rect x="423" y="104" width="5" height="6" rx="1"/><rect x="432" y="104" width="5" height="6" rx="1"/><rect x="378" y="115" width="5" height="6" rx="1"/><rect x="396" y="115" width="5" height="6" rx="1" class="off"/><rect x="405" y="115" width="5" height="6" rx="1"/><rect x="414" y="115" width="5" height="6" rx="1"/><rect x="423" y="115" width="5" height="6" rx="1"/><rect x="432" y="115" width="5" height="6" rx="1"/><rect x="387" y="126" width="5" height="6" rx="1"/><rect x="396" y="126" width="5" height="6" rx="1"/><rect x="405" y="126" width="5" height="6" rx="1"/><rect x="414" y="126" width="5" height="6" rx="1"/><rect x="423" y="126" width="5" height="6" rx="1" class="off"/><rect x="378" y="137" width="5" height="6" rx="1"/><rect x="387" y="137" width="5" height="6" rx="1"/><rect x="396" y="137" width="5" height="6" rx="1"/><rect x="405" y="137" width="5" height="6" rx="1" class="off"/><rect x="414" y="137" width="5" height="6" rx="1"/><rect x="432" y="137" width="5" height="6" rx="1"/><rect x="378" y="148" width="5" height="6" rx="1"/><rect x="387" y="148" width="5" height="6" rx="1" class="off"/><rect x="396" y="148" width="5" height="6" rx="1"/><rect x="405" y="148" width="5" height="6" rx="1"/><rect x="423" y="148" width="5" height="6" rx="1"/><rect x="432" y="148" width="5" height="6" rx="1" class="off"/><rect x="378" y="159" width="5" height="6" rx="1"/><rect x="387" y="159" width="5" height="6" rx="1"/><rect x="396" y="159" width="5" height="6" rx="1"/><rect x="414" y="159" width="5" height="6" rx="1" class="off"/><rect x="423" y="159" width="5" height="6" rx="1"/><rect x="432" y="159" width="5" height="6" rx="1"/><rect x="378" y="170" width="5" height="6" rx="1"/><rect x="387" y="170" width="5" height="6" rx="1"/><rect x="405" y="170" width="5" height="6" rx="1"/><rect x="414" y="170" width="5" height="6" rx="1"/><rect x="423" y="170" width="5" height="6" rx="1"/><rect x="432" y="170" width="5" height="6" rx="1"/><rect x="202" y="78" width="5" height="6" rx="1" class="off"/><rect x="220" y="78" width="5" height="6" rx="1"/><rect x="229" y="78" width="5" height="6" rx="1"/><rect x="202" y="89" width="5" height="6" rx="1"/><rect x="211" y="89" width="5" height="6" rx="1" class="off"/><rect x="220" y="89" width="5" height="6" rx="1"/><rect x="202" y="100" width="5" height="6" rx="1"/><rect x="211" y="100" width="5" height="6" rx="1"/><rect x="220" y="100" width="5" height="6" rx="1" class="off"/><rect x="229" y="100" width="5" height="6" rx="1"/><rect x="202" y="111" width="5" height="6" rx="1"/><rect x="220" y="111" width="5" height="6" rx="1"/><rect x="229" y="111" width="5" height="6" rx="1" class="off"/><rect x="202" y="122" width="5" height="6" rx="1"/><rect x="211" y="122" width="5" height="6" rx="1"/><rect x="220" y="122" width="5" height="6" rx="1"/><rect x="202" y="133" width="5" height="6" rx="1" class="off"/><rect x="211" y="133" width="5" height="6" rx="1"/><rect x="220" y="133" width="5" height="6" rx="1"/><rect x="229" y="133" width="5" height="6" rx="1"/><rect x="202" y="144" width="5" height="6" rx="1"/><rect x="220" y="144" width="5" height="6" rx="1"/><rect x="229" y="144" width="5" height="6" rx="1"/><rect x="202" y="155" width="5" height="6" rx="1"/><rect x="211" y="155" width="5" height="6" rx="1"/><rect x="220" y="155" width="5" height="6" rx="1" class="off"/><rect x="202" y="166" width="5" height="6" rx="1"/><rect x="211" y="166" width="5" height="6" rx="1"/><rect x="220" y="166" width="5" height="6" rx="1"/><rect x="229" y="166" width="5" height="6" rx="1" class="off"/><rect x="202" y="177" width="5" height="6" rx="1"/><rect x="220" y="177" width="5" height="6" rx="1"/><rect x="229" y="177" width="5" height="6" rx="1"/><rect x="202" y="188" width="5" height="6" rx="1" class="off"/><rect x="211" y="188" width="5" height="6" rx="1"/><rect x="220" y="188" width="5" height="6" rx="1"/></g>
-<g class="hs-palm"><path class="hs-trunk" d="M118 200 Q 114 169 121 138"/><g class="hs-leaves" transform="translate(121 138)"><path d="M0 0 Q-14 -8 -26 2 Q-12 -2 0 0Z"/><path d="M0 0 Q14 -10 27 0 Q12 -3 0 0Z"/><path d="M0 0 Q-6 -16 -18 -18 Q-6 -10 0 0Z"/><path d="M0 0 Q8 -16 20 -16 Q8 -9 0 0Z"/><path d="M0 0 Q-16 4 -22 14 Q-10 4 0 0Z"/><path d="M0 0 Q16 4 22 14 Q10 4 0 0Z"/></g></g><g class="hs-palm"><path class="hs-trunk" d="M462 200 Q 458 165 465 130"/><g class="hs-leaves" transform="translate(465 130)"><path d="M0 0 Q-14 -8 -26 2 Q-12 -2 0 0Z"/><path d="M0 0 Q14 -10 27 0 Q12 -3 0 0Z"/><path d="M0 0 Q-6 -16 -18 -18 Q-6 -10 0 0Z"/><path d="M0 0 Q8 -16 20 -16 Q8 -9 0 0Z"/><path d="M0 0 Q-16 4 -22 14 Q-10 4 0 0Z"/><path d="M0 0 Q16 4 22 14 Q10 4 0 0Z"/></g></g>
-<rect class="hs-ground" x="0" y="194" width="600" height="6"/>
-<g class="hs-plane"><svg x="-15" y="-15" width="30" height="30"><use href="#i-plane"/></svg><animateMotion dur="11s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".4 0 .6 1" path="M-40 124 C 140 100, 320 30, 660 38"/></g>
-</svg>
           </div>
-          <div class="home-cards">
-            <button class="home-card" type="button" data-page-link="order">
-              <span class="home-card-icon">＋</span><strong>Passer une commande</strong>
-              <span>Collez vos liens, choisissez avion ou bateau et indiquez l'adresse de livraison.</span>
-              <span class="home-card-action">Commencer →</span>
-            </button>
-            <button class="home-card" type="button" data-page-link="orders">
-              <span class="home-card-icon">↗</span><strong>Suivre mes commandes</strong>
-              <span>Retrouvez les étapes de livraison de vos colis.</span>
-              <span class="home-card-action"><span id="home-order-count">0</span> commande(s) · Voir →</span>
-            </button>
-          </div>
+
+          <section class="services-section" aria-labelledby="services-title">
+            <h2 id="services-title" class="services-title">Nos services</h2>
+            <div class="service-grid">
+              <button class="service-card" type="button" data-page-link="order">
+                <span class="service-banner service-banner-order"><span class="service-mark">COMMANDER</span></span>
+                <span class="service-body"><strong>Commander</strong><span>Vos liens, livrés chez vous</span><i class="service-go" aria-hidden="true">›</i></span>
+              </button>
+              <button class="service-card" type="button" data-page-link="orders">
+                <span class="service-banner service-banner-track"><span class="service-mark"><span id="home-order-count">0</span> COLIS</span></span>
+                <span class="service-body"><strong>Mes commandes</strong><span>Suivi étape par étape</span><i class="service-go" aria-hidden="true">›</i></span>
+              </button>
+              <a class="service-card" href="https://www.amazon.fr/" target="_blank" rel="noopener noreferrer">
+                <span class="service-banner service-banner-amazon"><span class="service-mark">amazon</span></span>
+                <span class="service-body"><strong>Amazon</strong><span>Copiez le lien du panier</span><i class="service-go" aria-hidden="true">›</i></span>
+              </a>
+              <a class="service-card" href="https://fr.shein.com/" target="_blank" rel="noopener noreferrer">
+                <span class="service-banner service-banner-shein"><span class="service-mark">SHEIN</span></span>
+                <span class="service-body"><strong>Shein</strong><span>Mode à petits prix</span><i class="service-go" aria-hidden="true">›</i></span>
+              </a>
+              <a class="service-card" href="https://www.aliexpress.com/" target="_blank" rel="noopener noreferrer">
+                <span class="service-banner service-banner-aliexpress"><span class="service-mark">AliExpress</span></span>
+                <span class="service-body"><strong>AliExpress</strong><span>Tout le choix d'Asie</span><i class="service-go" aria-hidden="true">›</i></span>
+              </a>
+              <a class="service-card" href="https://www.temu.com/" target="_blank" rel="noopener noreferrer">
+                <span class="service-banner service-banner-temu"><span class="service-mark">TEMU</span></span>
+                <span class="service-body"><strong>Temu</strong><span>Petits prix, grand choix</span><i class="service-go" aria-hidden="true">›</i></span>
+              </a>
+            </div>
+          </section>
+
           <section class="how-section" aria-labelledby="how-title">
             <div class="section-heading"><div><p class="eyebrow">COMMENT ÇA MARCHE</p><h2 id="how-title">3 étapes, c'est tout</h2></div></div>
             <ol class="how-steps">
@@ -337,32 +360,43 @@
             <details><summary>Combien coûte le service ?</summary><p>Nous vous envoyons votre panier au montant exact, majoré de notre commission : 10 % du montant des articles, 10 € fixes pour une commande de moins de 100 €, et 7 % pour une commande de plus de 5 000 €. Les montants sont convertis au taux de 1 € = 666 FCFA.</p></details>
             <details><summary>Quand et comment dois-je payer ?</summary><p>Attendez de recevoir votre panier au montant exact, puis réglez-le par Mobile Money (MoMo). Envoyez ensuite votre reçu depuis « Mes commandes ». Nous commandons vos articles dès que le paiement est vérifié.</p></details>
             <details><summary>Combien coûte l'expédition ?</summary><p>Une fois votre commande livrée à notre adresse en France, nous nous occupons de l'expédition. Par avion : 15 € par kilo, calculés sur le poids réel du colis. Par bateau : le tarif est défini selon les produits. Les frais d'expédition vous sont communiqués à réception en France et se règlent avant le départ du colis.</p></details>
-            <details><summary>Comment suivre mon colis ?</summary><p>Ouvrez « Mes commandes » pour consulter le statut et la référence de chaque colis. Contactez CK sur WhatsApp si vous avez une question sur le suivi.</p></details>
-            <details><summary>Quels produits peuvent être soumis à des restrictions ?</summary><p>Les batteries, liquides, parfums, aérosols, médicaments, denrées alimentaires, contrefaçons et articles dangereux peuvent être interdits ou soumis à des conditions selon le pays et le transporteur. Cette liste est indicative et non exhaustive. Demandez confirmation à CK avant l'achat.</p></details>
-            <details><summary>Comment contacter CK ?</summary><p>Utilisez l'icône téléphone dans le header, puis choisissez le WhatsApp du Bénin ou du Togo.</p></details>
+            <details><summary>Comment suivre mon colis ?</summary><p>Ouvrez « Mes commandes » pour consulter le statut et la référence de chaque colis. Contactez Speed Shopping sur WhatsApp si vous avez une question sur le suivi.</p></details>
+            <details><summary>Quels produits peuvent être soumis à des restrictions ?</summary><p>Les batteries, liquides, parfums, aérosols, médicaments, denrées alimentaires, contrefaçons et articles dangereux peuvent être interdits ou soumis à des conditions selon le pays et le transporteur. Cette liste est indicative et non exhaustive. Demandez confirmation à Speed Shopping avant l'achat.</p></details>
+            <details><summary>Comment contacter Speed Shopping ?</summary><p>Utilisez l'icône téléphone dans le header, puis choisissez le WhatsApp du Bénin ou du Togo.</p></details>
           </div>
           <div class="faq-contact"><strong>Vous n'avez pas trouvé votre réponse ?</strong><span>Contactez-nous sur WhatsApp depuis l'icône en haut de la page.</span></div>
         </section>
 
         <section id="customer-page-order" class="customer-page" hidden>
-          <form id="order-form" class="panel order-panel">
+          <form id="order-form" class="panel order-panel" data-step="1">
             <div class="section-heading">
               <div><p class="eyebrow">CRÉATION DE COMMANDE</p><h2 id="checkout-title">1. Vos liens</h2></div>
             </div>
             <div class="checkout-progress" aria-label="Étapes de commande">
               <div class="progress-step active" data-step="1"><span>1</span><span class="progress-label">Liens</span></div>
               <i></i>
-              <div class="progress-step" data-step="2"><span>2</span><span class="progress-label">Livraison</span></div>
+              <div class="progress-step" data-step="2"><span>2</span><span class="progress-label">Détails</span></div>
               <i></i>
-              <div class="progress-step" data-step="3"><span>3</span><span class="progress-label">Vérification</span></div>
+              <div class="progress-step" data-step="3"><span>3</span><span class="progress-label">Expédition</span></div>
+              <i></i>
+              <div class="progress-step" data-step="4"><span>4</span><span class="progress-label">Livraison</span></div>
+              <i></i>
+              <div class="progress-step" data-step="5"><span>5</span><span class="progress-label">Vérification</span></div>
             </div>
 
             <section class="checkout-step" data-checkout-step="1">
-              <p class="step-help">Collez le lien de chaque article, ou directement le lien de votre panier (Amazon, Shein, Zara, AliExpress…). Le prix est facultatif : nous vous enverrons le montant exact.</p>
+              <p class="step-help">Collez simplement le lien de chaque article, ou celui de votre panier complet (Amazon, Shein, Zara, AliExpress…). Vous préciserez les détails à l'étape suivante.</p>
+            </section>
+
+            <section class="checkout-step" data-checkout-step="2" hidden>
+              <p class="step-help">Précisez chaque article : taille, couleur, quantité. Le prix et la photo sont facultatifs, nous vous enverrons le montant exact.</p>
               <div class="customs-note">
                 <strong>Vérifiez les restrictions avant de commander</strong>
-                <span>Les batteries, liquides, parfums, aérosols, médicaments, aliments et articles dangereux peuvent être soumis à des restrictions ou refusés selon le pays et le transporteur. Cette liste est indicative et non exhaustive ; contactez CK avant l'achat si vous avez un doute.</span>
+                <span>Les batteries, liquides, parfums, aérosols, médicaments, aliments et articles dangereux peuvent être soumis à des restrictions ou refusés selon le pays et le transporteur. Cette liste est indicative et non exhaustive ; contactez Speed Shopping avant l'achat si vous avez un doute.</span>
               </div>
+            </section>
+
+            <div class="checkout-products">
               <div id="product-list" class="product-list"></div>
               <button id="add-product" class="button button-outline add-product-button" type="button">＋ Ajouter un autre lien</button>
               <div class="live-estimate" aria-live="polite">
@@ -370,10 +404,10 @@
                 <div><span>Commission</span><strong id="estimate-commission">—</strong></div>
                 <div class="live-estimate-total"><span>Total estimé</span><strong id="estimate-total">Indiquez un prix pour estimer</strong></div>
               </div>
-            </section>
+            </div>
 
-            <section class="checkout-step" data-checkout-step="2" hidden>
-              <p class="step-help">Choisissez le mode d'expédition depuis la France, puis indiquez qui recevra le colis.</p>
+            <section class="checkout-step" data-checkout-step="3" hidden>
+              <p class="step-help">Choisissez comment votre colis voyage depuis la France, et le pays de livraison.</p>
               <fieldset class="shipping-modes">
                 <legend>Mode d'expédition</legend>
                 <label class="shipping-mode">
@@ -394,14 +428,20 @@
                 </label>
               </fieldset>
               <div class="order-grid">
-                <label>Destination
+                <label>Pays de livraison
                   <select name="destination" required>
                     <option value="benin">Bénin</option>
                     <option value="togo">Togo</option>
                   </select>
                 </label>
+              </div>
+            </section>
+
+            <section class="checkout-step" data-checkout-step="4" hidden>
+              <p class="step-help">Indiquez qui recevra le colis et où le livrer.</p>
+              <div class="order-grid">
                 <label>Nom complet du destinataire<input name="customerName" required maxlength="100" placeholder="Nom et prénom"></label>
-                <label>Téléphone<input name="phone" required maxlength="30" placeholder="+229 … ou +228 …"></label>
+                <label>Téléphone<input name="phone" required maxlength="30" placeholder="+229 01 … ou +228 …"></label>
                 <label class="wide">Ville et adresse de livraison
                   <div class="location-picker">
                     <input name="location" required maxlength="300" readonly placeholder="Touchez « Choisir sur la carte »">
@@ -415,13 +455,13 @@
               </div>
             </section>
 
-            <section class="checkout-step" data-checkout-step="3" hidden>
+            <section class="checkout-step" data-checkout-step="5" hidden>
               <p class="step-help">Vérifiez vos liens et les coordonnées avant d'envoyer votre commande.</p>
               <div id="checkout-review" class="checkout-review"></div>
               <div class="pricing-note">
                 <strong>Ce qui se passe ensuite</strong>
-                <span><b>Étape 2 :</b> nous vous envoyons votre panier au montant exact, majoré de notre commission (10 % ; 10 € fixes sous 100 € ; 7 % au-delà de 5 000 €). Vous réglez par MoMo.</span>
-                <span><b>Étape 3 :</b> à réception à notre adresse en France, nous pesons le colis et vous communiquons les frais d'expédition (avion : 15 €/kg ; bateau : selon les produits).</span>
+                <span><b>Paiement :</b> nous vous envoyons votre panier au montant exact, majoré de notre commission (10 % ; 10 € fixes sous 100 € ; 7 % au-delà de 5 000 €). Vous réglez par MoMo.</span>
+                <span><b>Expédition :</b> à réception à notre adresse en France, nous pesons le colis et vous communiquons les frais (avion : 15 €/kg ; bateau : selon les produits).</span>
                 <span>Taux appliqué : 1 € = 666 FCFA.</span>
               </div>
               <div class="quote-box" aria-live="polite">
@@ -434,7 +474,7 @@
             <div class="checkout-navigation">
               <button id="previous-step" class="button button-outline" type="button" hidden>← Retour</button>
               <p id="order-message" class="form-message" aria-live="polite"></p>
-              <button id="next-step" class="button button-primary" type="button">Continuer vers la livraison →</button>
+              <button id="next-step" class="button button-primary" type="button">Détailler mes articles →</button>
               <button id="submit-order" class="button button-primary" type="submit" hidden>Envoyer ma commande</button>
             </div>
           </form>
@@ -530,7 +570,7 @@
       </div>
     </footer>
   </section>
-  <footer><span>CK · Commandes et livraisons</span><span>Bénin +229 · Togo +228</span></footer>
+  <footer><span>Speed Shopping · La France à portée de main</span><span>Bénin +229 · Togo +228</span></footer>
   <script type="importmap">
     {
       "imports": {
