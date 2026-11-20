@@ -1743,7 +1743,6 @@ body.auth-screen .topbar { background: var(--chrome); }
 .ship-option small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
 .ship-option i { color: var(--royal); font-size: 24px; font-style: normal; }
 /* Étape Expédition retirée quand le mode a été choisi sur l'accueil */
-#order-form.ship-locked .progress-step[data-step="3"], #order-form.ship-locked .progress-step[data-step="3"] + i { display: none; }
 
 /* ======= Vrais drapeaux Bénin / Togo ======= */
 svg.flag { display: inline-block; width: 1.5em; height: 1em; flex: 0 0 auto; border-radius: 3px; vertical-align: -0.15em; box-shadow: 0 0 0 1px #0000001a; }
@@ -1772,3 +1771,8 @@ svg.flag { display: inline-block; width: 1.5em; height: 1em; flex: 0 0 auto; bor
 }
 @media (max-width: 760px) { .home-hero.hero-v2 { margin-right: -18px; margin-left: -18px; } }
 @media (max-width: 380px) { .home-hero.hero-v2 { margin-right: -14px; margin-left: -14px; } }
+
+/* Étape 3 : seul ce qui n'a pas été choisi sur l'accueil reste affiché */
+#order-form.step3-skip .progress-step[data-step="3"], #order-form.step3-skip .progress-step[data-step="3"] + i { display: none; }
+#order-form.ship-locked .shipping-modes:not(.destination-choice) { display: none; }
+.ship-sheet-mode-icon { width: 18px; height: 18px; }

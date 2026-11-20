@@ -198,13 +198,13 @@
           <section class="services-section" aria-labelledby="services-title">
             <h2 id="services-title" class="services-title">Nos services</h2>
             <div class="service-grid service-grid-two">
-              <button class="service-card" type="button" data-ship-country="benin">
-                <span class="service-banner service-banner-benin"><svg class="service-flag" aria-hidden="true"><use href="#flag-bj"/></svg><span class="service-mark">BÉNIN</span></span>
-                <span class="service-body"><strong>Livraison au Bénin</strong><span>Cotonou, Porto-Novo, Parakou…</span><i class="service-go" aria-hidden="true">›</i></span>
+              <button class="service-card" type="button" data-ship-mode="avion">
+                <span class="service-banner service-banner-air"><svg class="service-icon" aria-hidden="true"><use href="#i-plane"/></svg><span class="service-mark">AVION</span></span>
+                <span class="service-body"><strong>Par avion</strong><span>15 € par kilo · le plus rapide</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
-              <button class="service-card" type="button" data-ship-country="togo">
-                <span class="service-banner service-banner-togo"><svg class="service-flag" aria-hidden="true"><use href="#flag-tg"/></svg><span class="service-mark">TOGO</span></span>
-                <span class="service-body"><strong>Livraison au Togo</strong><span>Lomé, Kara, Sokodé…</span><i class="service-go" aria-hidden="true">›</i></span>
+              <button class="service-card" type="button" data-ship-mode="bateau">
+                <span class="service-banner service-banner-sea"><svg class="service-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="service-mark">BATEAU</span></span>
+                <span class="service-body"><strong>Par bateau</strong><span>Tarif selon les produits</span><i class="service-go" aria-hidden="true">›</i></span>
               </button>
             </div>
           </section>
@@ -494,16 +494,16 @@
     <section class="ship-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="ship-sheet-title">
       <span class="ship-sheet-handle" aria-hidden="true"></span>
       <button class="ship-sheet-close" type="button" data-close-ship-sheet aria-label="Fermer">✕</button>
-      <p id="ship-sheet-country" class="ship-sheet-country"><svg class="flag" aria-hidden="true"><use href="#flag-bj"/></svg> <span>Livraison au Bénin</span></p>
-      <h2 id="ship-sheet-title">Comment voulez-vous recevoir votre colis ?</h2>
+      <p id="ship-sheet-mode" class="ship-sheet-country"><svg class="ship-sheet-mode-icon" aria-hidden="true"><use href="#i-plane"/></svg><span>Par avion</span></p>
+      <h2 id="ship-sheet-title">Où livrer votre colis ?</h2>
       <div class="ship-sheet-options service-grid service-grid-two">
-        <button class="service-card" type="button" data-sheet-mode="avion">
-          <span class="service-banner service-banner-air"><svg class="service-icon" aria-hidden="true"><use href="#i-plane"/></svg><span class="service-mark">AVION</span></span>
-          <span class="service-body"><strong>Par avion</strong><span>15 € par kilo · le plus rapide</span><i class="service-go" aria-hidden="true">›</i></span>
+        <button class="service-card" type="button" data-sheet-country="benin">
+          <span class="service-banner service-banner-benin"><svg class="service-flag" aria-hidden="true"><use href="#flag-bj"/></svg><span class="service-mark">BÉNIN</span></span>
+          <span class="service-body"><strong>Bénin</strong><span>Cotonou, Porto-Novo…</span><i class="service-go" aria-hidden="true">›</i></span>
         </button>
-        <button class="service-card" type="button" data-sheet-mode="bateau">
-          <span class="service-banner service-banner-sea"><svg class="service-icon" aria-hidden="true"><use href="#i-box"/></svg><span class="service-mark">BATEAU</span></span>
-          <span class="service-body"><strong>Par bateau</strong><span>Selon les produits</span><i class="service-go" aria-hidden="true">›</i></span>
+        <button class="service-card" type="button" data-sheet-country="togo">
+          <span class="service-banner service-banner-togo"><svg class="service-flag" aria-hidden="true"><use href="#flag-tg"/></svg><span class="service-mark">TOGO</span></span>
+          <span class="service-body"><strong>Togo</strong><span>Lomé, Kara…</span><i class="service-go" aria-hidden="true">›</i></span>
         </button>
       </div>
     </section>

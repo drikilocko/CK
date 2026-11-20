@@ -1503,10 +1503,10 @@ $("#logout-button").addEventListener("click", async () => {
 
 $("#customer-view").addEventListener("click", (event) => {
   const button = event.target.closest("[data-page-link]");
-  const country = event.target.closest("[data-ship-country]")?.dataset.shipCountry;
-  if (country) {
-    chooseCountryFromHome(country);
-    openShipSheet(country);
+  const mode = event.target.closest("[data-ship-mode]")?.dataset.shipMode;
+  if (mode) {
+    chooseModeFromHome(mode);
+    openShipSheet(mode);
     return;
   }
   if (button) showCustomerPage(button.dataset.pageLink);
@@ -1604,7 +1604,7 @@ $("#next-step").addEventListener("click", () => {
     }
   }
   let next = checkoutStep + 1;
-  if (next === 3 && shippingChosenOnHome) next = 4;
+  if (next === 3 && shippingChosenOnHome && countryChosenOnHome) next = 4;
   if (next === 4 && applySavedDelivery()) {
     deliveryStepSkipped = true;
     next = 5;
@@ -1614,7 +1614,7 @@ $("#next-step").addEventListener("click", () => {
 $("#previous-step").addEventListener("click", () => {
   let previous = checkoutStep - 1;
   if (previous === 4 && deliveryStepSkipped) previous = 3;
-  if (previous === 3 && shippingChosenOnHome) previous = 2;
+  if (previous === 3 && shippingChosenOnHome && countryChosenOnHome) previous = 2;
   setCheckoutStep(previous);
 });
 $("#checkout-review").addEventListener("click", (event) => {
@@ -2110,7 +2110,22 @@ function chooseCountryFromHome(country) {
   countryChosenOnHome = true;
   setDestination(country);
   showHeroCountry(country);
-  $("#order-form").classList.add("country-locked");
+  updateHomeLocks();
+}
+
+function chooseModeFromHome(mode) {
+  const radio = document.querySelector(`#order-form [name=shippingMode][value="${mode}"]`);
+  if (radio) radio.checked = true;
+  shippingChosenOnHome = true;
+  updateHomeLocks();
+}
+
+// Ce qui a été choisi sur l'accueil n'est plus redemandé ; l'étape 3 disparaît si tout est choisi.
+function updateHomeLocks() {
+  const form = $("#order-form");
+  form.classList.toggle("country-locked", countryChosenOnHome);
+  form.classList.toggle("ship-locked", shippingChosenOnHome);
+  form.classList.toggle("step3-skip", countryChosenOnHome && shippingChosenOnHome);
 }
 document.querySelector(".hero-switch")?.addEventListener("click", (event) => {
   const option = event.target.closest("[data-hero-country]");
@@ -2120,13 +2135,13 @@ document.querySelector(".hero-switch")?.addEventListener("click", (event) => {
 });
 showHeroCountry(getDestination());
 
-// Panneau du bas : après le pays, le client choisit avion ou bateau, puis la commande s'ouvre sans l'étape Expédition.
-function openShipSheet(country) {
-  $("#ship-sheet-country use").setAttribute("href", country === "togo" ? "#flag-tg" : "#flag-bj");
-  $("#ship-sheet-country span").textContent = country === "togo" ? "Livraison au Togo" : "Livraison au Bénin";
-  const current = document.querySelector("#order-form [name=shippingMode]:checked")?.value;
-  document.querySelectorAll("[data-sheet-mode]").forEach((button) => {
-    button.classList.toggle("is-current", shippingChosenOnHome && button.dataset.sheetMode === current);
+// Panneau du bas : après avion ou bateau, le client choisit son pays, puis la commande s'ouvre sans l'étape Expédition.
+function openShipSheet(mode) {
+  $("#ship-sheet-mode use").setAttribute("href", mode === "bateau" ? "#i-box" : "#i-plane");
+  $("#ship-sheet-mode span").textContent = mode === "bateau" ? "Par bateau" : "Par avion";
+  const current = getDestination();
+  document.querySelectorAll("[data-sheet-country]").forEach((button) => {
+    button.classList.toggle("is-current", countryChosenOnHome && button.dataset.sheetCountry === current);
   });
   $("#ship-sheet").hidden = false;
   document.body.classList.add("sheet-open");
@@ -2140,12 +2155,9 @@ $("#ship-sheet").addEventListener("click", (event) => {
     closeShipSheet();
     return;
   }
-  const option = event.target.closest("[data-sheet-mode]");
+  const option = event.target.closest("[data-sheet-country]");
   if (!option) return;
-  const radio = document.querySelector(`#order-form [name=shippingMode][value="${option.dataset.sheetMode}"]`);
-  if (radio) radio.checked = true;
-  shippingChosenOnHome = true;
-  $("#order-form").classList.add("ship-locked");
+  chooseCountryFromHome(option.dataset.sheetCountry);
   closeShipSheet();
   if (checkoutStep === 3) setCheckoutStep(2);
   showCustomerPage("order");
